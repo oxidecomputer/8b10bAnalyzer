@@ -28,7 +28,7 @@ protected: //vars
 	AnalyzerChannelData* mSerial;
 
 	decode8b10bSimulationDataGenerator mSimulationDataGenerator;
-	bool mSimulationInitilized;
+	bool mSimulationInitialized;
 
 	//Serial analysis vars:
 	U32 mSampleRateHz;

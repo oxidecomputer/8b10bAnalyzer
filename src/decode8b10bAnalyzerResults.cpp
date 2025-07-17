@@ -21,9 +21,19 @@ void decode8b10bAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& c
 	ClearResultStrings();
 	Frame frame = GetFrame( frame_index );
 
-	char number_str[128];
-	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-	AddResultString( number_str );
+	if( frame.mFlags == 1 && frame.mData1 == 0xBC )
+	{
+		// K28.5 comma character - multi-level display
+		AddResultString( "K28.5" );                          // Short format
+		AddResultString( "K28.5 RD+" );                      // Medium format (default)
+		AddResultString( "K28.5: 001111|1010" );            // Detailed format with 5b/6b|3b/4b
+	}
+	else
+	{
+		char number_str[128];
+		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
+		AddResultString( number_str );
+	}
 }
 
 void decode8b10bAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id )
@@ -33,7 +43,7 @@ void decode8b10bAnalyzerResults::GenerateExportFile( const char* file, DisplayBa
 	U64 trigger_sample = mAnalyzer->GetTriggerSample();
 	U32 sample_rate = mAnalyzer->GetSampleRate();
 
-	file_stream << "Time [s],Value" << std::endl;
+	file_stream << "Time [s],Symbol,Type,Value,10-bit Code,5b/6b,3b/4b" << std::endl;
 
 	U64 num_frames = GetNumFrames();
 	for( U32 i=0; i < num_frames; i++ )
@@ -46,7 +56,15 @@ void decode8b10bAnalyzerResults::GenerateExportFile( const char* file, DisplayBa
 		char number_str[128];
 		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
 
-		file_stream << time_str << "," << number_str << std::endl;
+		if( frame.mFlags == 1 && frame.mData1 == 0xBC )
+		{
+			// K28.5 with 10-bit breakdown
+			file_stream << time_str << ",K28.5,Control," << number_str << ",0011111010,001111,1010" << std::endl;
+		}
+		else
+		{
+			file_stream << time_str << ",Data,Data," << number_str << ",,,," << std::endl;
+		}
 
 		if( UpdateExportProgressAndCheckForCancel( i, num_frames ) == true )
 		{
@@ -64,9 +82,16 @@ void decode8b10bAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Disp
 	Frame frame = GetFrame( frame_index );
 	ClearTabularText();
 
-	char number_str[128];
-	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-	AddTabularText( number_str );
+	if( frame.mFlags == 1 && frame.mData1 == 0xBC )
+	{
+		AddTabularText( "K28.5" );
+	}
+	else
+	{
+		char number_str[128];
+		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
+		AddTabularText( number_str );
+	}
 #endif
 }
 

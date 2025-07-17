@@ -83,7 +83,7 @@ comma character is located.
 - **Export**: CSV format includes symbol type, value, control/data classification, and error status
 
 ### Frame Annotations
-- **Multi-level Display**: Short (K28.5), medium (K28.5 RD+), and detailed (K28.5: 001111|1010) formats
+- **Multi-level Display**: Short (K28.5), medium (K28.5 RD+), and detailed (K28.5: 001111|1010) formats, configurable via settings. Medium is the default setting.
 - **Bit-level Markers**: Dots for 5b/6b portion, squares for 3b/4b portion
 - **Special Indicators**: Up arrows mark K28.5 comma characters for synchronization
 - **Frame Types**: Data (type 0), Control (type 1), Error (type 2) for color coding these names are reflected in the mType so that they display nicely.
@@ -126,14 +126,11 @@ No lint or test commands are defined in this project - it follows the standard S
 ## Usage Notes
 
 ### Data Processing
-- Uses sliding 10-bit window to find comma characters at any bit position (not just symbol boundaries)
-- Multi-tier synchronization: K28.5 first, then any comma (K28.0, K28.1, K28.7), then fallback
-- Processes up to 100,000 symbols to prevent performance issues
+- Uses sliding 10-bit window to initially find K28.5 comma characters at any bit position to determine
+proper symbol boundaries.
 - Invalid symbols are marked as errors but don't stop analysis
-- Re-synchronization attempts when error symbols are detected
 
 ### Expected Performance
 - Works best with clean 8b/10b signals containing comma characters
-- Can process noisy signals but may show more error symbols
 - Re-synchronization attempts are made when errors are detected
 - Sample rate should be at least 4x the bit rate for reliable decoding

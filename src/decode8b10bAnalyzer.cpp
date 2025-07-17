@@ -1,8 +1,8 @@
-#include "SimpleSerialAnalyzer.h"
-#include "SimpleSerialAnalyzerSettings.h"
+#include "decode8b10bAnalyzer.h"
+#include "decode8b10bAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
 
-SimpleSerialAnalyzer::SimpleSerialAnalyzer()
+decode8b10bAnalyzer::decode8b10bAnalyzer()
 :	Analyzer2(),  
 	mSettings(),
 	mSimulationInitilized( false )
@@ -10,20 +10,20 @@ SimpleSerialAnalyzer::SimpleSerialAnalyzer()
 	SetAnalyzerSettings( &mSettings );
 }
 
-SimpleSerialAnalyzer::~SimpleSerialAnalyzer()
+decode8b10bAnalyzer::~decode8b10bAnalyzer()
 {
 	KillThread();
 }
 
-void SimpleSerialAnalyzer::SetupResults()
+void decode8b10bAnalyzer::SetupResults()
 {
 	// SetupResults is called each time the analyzer is run. Because the same instance can be used for multiple runs, we need to clear the results each time.
-	mResults.reset(new SimpleSerialAnalyzerResults( this, &mSettings ));
+	mResults.reset(new decode8b10bAnalyzerResults( this, &mSettings ));
 	SetAnalyzerResults( mResults.get() );
 	mResults->AddChannelBubblesWillAppearOn( mSettings.mInputChannel );
 }
 
-void SimpleSerialAnalyzer::WorkerThread()
+void decode8b10bAnalyzer::WorkerThread()
 {
 	mSampleRateHz = GetSampleRate();
 
@@ -73,12 +73,12 @@ void SimpleSerialAnalyzer::WorkerThread()
 	}
 }
 
-bool SimpleSerialAnalyzer::NeedsRerun()
+bool decode8b10bAnalyzer::NeedsRerun()
 {
 	return false;
 }
 
-U32 SimpleSerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate, SimulationChannelDescriptor** simulation_channels )
+U32 decode8b10bAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate, SimulationChannelDescriptor** simulation_channels )
 {
 	if( mSimulationInitilized == false )
 	{
@@ -89,24 +89,24 @@ U32 SimpleSerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 
 	return mSimulationDataGenerator.GenerateSimulationData( minimum_sample_index, device_sample_rate, simulation_channels );
 }
 
-U32 SimpleSerialAnalyzer::GetMinimumSampleRateHz()
+U32 decode8b10bAnalyzer::GetMinimumSampleRateHz()
 {
 	return mSettings.mBitRate * 4;
 }
 
-const char* SimpleSerialAnalyzer::GetAnalyzerName() const
+const char* decode8b10bAnalyzer::GetAnalyzerName() const
 {
-	return "Simple Serial";
+	return "8b10b Decoder";
 }
 
 const char* GetAnalyzerName()
 {
-	return "Simple Serial";
+	return "8b10b Decoder";
 }
 
 Analyzer* CreateAnalyzer()
 {
-	return new SimpleSerialAnalyzer();
+	return new decode8b10bAnalyzer();
 }
 
 void DestroyAnalyzer( Analyzer* analyzer )

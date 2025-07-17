@@ -1,17 +1,17 @@
-#ifndef SIMPLESERIAL_ANALYZER_H
-#define SIMPLESERIAL_ANALYZER_H
+#ifndef DECODE8B10B_ANALYZER_H
+#define DECODE8B10B_ANALYZER_H
 
 #include <Analyzer.h>
-#include "SimpleSerialAnalyzerSettings.h"
-#include "SimpleSerialAnalyzerResults.h"
-#include "SimpleSerialSimulationDataGenerator.h"
+#include "decode8b10bAnalyzerSettings.h"
+#include "decode8b10bAnalyzerResults.h"
+#include "decode8b10bSimulationDataGenerator.h"
 #include <memory>
 
-class ANALYZER_EXPORT SimpleSerialAnalyzer : public Analyzer2
+class ANALYZER_EXPORT decode8b10bAnalyzer : public Analyzer2
 {
 public:
-	SimpleSerialAnalyzer();
-	virtual ~SimpleSerialAnalyzer();
+	decode8b10bAnalyzer();
+	virtual ~decode8b10bAnalyzer();
 
 	virtual void SetupResults();
 	virtual void WorkerThread();
@@ -23,11 +23,11 @@ public:
 	virtual bool NeedsRerun();
 
 protected: //vars
-	SimpleSerialAnalyzerSettings mSettings;
-	std::unique_ptr<SimpleSerialAnalyzerResults> mResults;
+	decode8b10bAnalyzerSettings mSettings;
+	std::unique_ptr<decode8b10bAnalyzerResults> mResults;
 	AnalyzerChannelData* mSerial;
 
-	SimpleSerialSimulationDataGenerator mSimulationDataGenerator;
+	decode8b10bSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitilized;
 
 	//Serial analysis vars:
@@ -40,4 +40,4 @@ extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();
 extern "C" ANALYZER_EXPORT Analyzer* __cdecl CreateAnalyzer( );
 extern "C" ANALYZER_EXPORT void __cdecl DestroyAnalyzer( Analyzer* analyzer );
 
-#endif //SIMPLESERIAL_ANALYZER_H
+#endif //DECODE8B10B_ANALYZER_H

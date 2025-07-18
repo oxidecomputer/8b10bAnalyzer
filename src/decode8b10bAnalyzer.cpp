@@ -51,8 +51,8 @@ void decode8b10bAnalyzer::WorkerThread()
 	};
 
 	// Utility function: reverse lookup table (decoded octet -> code-word name)
-	auto get_symbol_name = [](U8 decoded_octet) -> const char* {
-		static const std::map<U8, const char*> name_map = {
+	auto get_symbol_name = [](U16 decoded_octet) -> const char* {
+		static const std::map<U16, const char*> name_map = {
 			// D-characters (Dx.y format where decoded_octet = (x << 3) | y)
 			{0x00, "D0.0"}, {0x01, "D1.0"}, {0x02, "D2.0"}, {0x03, "D3.0"},
 			{0x04, "D4.0"}, {0x05, "D5.0"}, {0x06, "D6.0"}, {0x07, "D7.0"},
@@ -141,11 +141,11 @@ void decode8b10bAnalyzer::WorkerThread()
 
 
 	// Complete 8b/10b decode table using actual observed patterns
-	auto decode_symbol = [](U16 ten_bit_code) -> std::pair<U8, bool> {
+	auto decode_symbol = [](U16 ten_bit_code) -> std::pair<U16, bool> {
 		
 		// Complete 8b/10b lookup table using verified patterns for LSB-first sampling
 		// Based on working K28.5 and observed D-character patterns
-		static const std::map<U16, U8> decode_map = {
+		static const std::map<U16, U16> decode_map = {
 		
 			
 			{0x274, 0x00}, {0x18b, 0x00}, // D0.0: 0b1001110100 RD-, 0b0110001011 RD+
@@ -470,7 +470,7 @@ void decode8b10bAnalyzer::WorkerThread()
 			if( synchronized )
 			{
 				auto decode_result = decode_symbol(sliding_window);
-				U8 decoded_value = decode_result.first;
+				U16 decoded_value = decode_result.first;
 				bool is_valid = decode_result.second;
 				
 				// Create frame for this 8b/10b symbol
@@ -478,22 +478,28 @@ void decode8b10bAnalyzer::WorkerThread()
 				frame.mData1 = decoded_value; // 8-bit decoded value
 				frame.mData2 = sliding_window; // Store 10-bit raw value in mData2
 				frame.mFlags = is_valid ? 1 : 0; // Valid symbol flag
-				
+				frame.mStartingSampleInclusive = bit_sample_positions.back() - samples_per_bit/2;
+				frame.mEndingSampleInclusive = bit_sample_positions.front() + samples_per_bit/2;
+
+				FrameV2 frame_v2;
+				frame_v2.AddString("Name", get_symbol_name(decoded_value));
+				frame_v2.AddInteger("Decoded Octet", decoded_value);
 				// Determine frame type: K28.5=Control(1), Data=Data(0), Invalid=Error(2)
 				if( !is_valid )
 				{
 					frame.mType = 2; // Error
 				}
-				else if( decoded_value == 0xBC ) // K28.5
+				else if( decoded_value >= 0xFF ) // Control char
 				{
 					frame.mType = 1; // Control
+					mResults->AddFrameV2( frame_v2, "Control", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
 				}
 				else
 				{
 					frame.mType = 0; // Data
+					mResults->AddFrameV2( frame_v2, "Data", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
 				}
-				frame.mStartingSampleInclusive = bit_sample_positions.back() - samples_per_bit/2;
-				frame.mEndingSampleInclusive = bit_sample_positions.front() + samples_per_bit/2;
+				
 
 				// Add bit-level markers with color coding for bit values
 				for( U32 i = 0; i < 6; i++ )

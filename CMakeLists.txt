@@ -21,6 +21,8 @@ src/decode8b10bAnalyzerSettings.cpp
 src/decode8b10bAnalyzerSettings.h
 src/decode8b10bSimulationDataGenerator.cpp
 src/decode8b10bSimulationDataGenerator.h
+src/decode8b10bSymbolUtils.cpp
+src/decode8b10bSymbolUtils.h
 )
 
 add_analyzer_plugin(${PROJECT_NAME} SOURCES ${SOURCES})

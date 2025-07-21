@@ -2,6 +2,7 @@
 #include <AnalyzerHelpers.h>
 #include "decode8b10bAnalyzer.h"
 #include "decode8b10bAnalyzerSettings.h"
+#include "decode8b10bSymbolUtils.h"
 #include <iostream>
 #include <fstream>
 
@@ -21,7 +22,7 @@ void decode8b10bAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& c
 	ClearResultStrings();
 	Frame frame = GetFrame( frame_index );
 
-	if( frame.mFlags == 1 && frame.mData1 == 0xBC )
+	if( frame.mFlags == 1 && frame.mData1 == 0x1BC )
 	{
 		// K28.5 comma character - determine RD from 10-bit pattern
 		// Note: mData2 contains the sampled pattern (LSB-left), need to check against our reversed patterns
@@ -48,26 +49,22 @@ void decode8b10bAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& c
 	}
 	else if( frame.mFlags == 1 ) // Valid symbol but not K28.5
 	{
-		// Data character - show as D-notation (Dx.y format)
-		U8 decoded_value = frame.mData1;
-		U8 dx = (decoded_value >> 5) & 0x1F;  // Bits 7:5 = x part  
-		U8 dy = decoded_value & 0x07;         // Bits 2:0 = y part
-		
-		char d_notation[32];
-		sprintf( d_notation, "D%d.%d", dx, dy );
+		// Use shared utility for symbol naming
+		U16 decoded_value = frame.mData1;
+		const char* symbol_name = decode8b10bSymbolUtils::GetSymbolName(decoded_value);
 		
 		char hex_str[32];
 		sprintf( hex_str, "0x%02X", decoded_value );
 		
-		AddResultString( d_notation );                   // Short: D10.2
-		AddResultString( d_notation );                   // Medium: D10.2
+		AddResultString( symbol_name );                  // Short: D10.2 or K28.0
+		AddResultString( symbol_name );                  // Medium: D10.2 or K28.0  
 		AddResultString( hex_str );                      // Detailed: 0x4A
 	}
 	else
 	{
 		// Invalid symbol - show the 10-bit pattern in hex for analysis
 		char hex_str[32];
-		sprintf( hex_str, "0x%03X", frame.mData2 & 0x3FF );
+		sprintf( hex_str, "0x%03llX", (unsigned long long)(frame.mData2 & 0x3FF) );
 		char error_str[64];
 		sprintf( error_str, "UNK:%s", hex_str );
 		

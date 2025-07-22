@@ -22,43 +22,35 @@ void decode8b10bAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& c
 	ClearResultStrings();
 	Frame frame = GetFrame( frame_index );
 
-	if( frame.mFlags == 1 && frame.mData1 == 0x1BC )
-	{
-		// K28.5 comma character - determine RD from 10-bit pattern
-		// Note: mData2 contains the sampled pattern (LSB-left), need to check against our reversed patterns
-		U16 ten_bit_pattern = frame.mData2;
-		
-		// Helper to reverse bits for display
-		auto reverse_10_bits = [](U16 value) -> U16 {
-			U16 reversed = 0;
-			for(int i = 0; i < 10; i++) {
-				if(value & (1 << i)) {
-					reversed |= (1 << (9 - i));
-				}
-			}
-			return reversed;
-		};
-		
-		// Check against the actual sampled patterns that were working
-		bool is_rd_minus = (ten_bit_pattern == 0xFA);  // 0xFA = RD-, 0x305 = RD+
-		
-		// Multi-level display with correct RD
-		AddResultString( "K28.5" );                                           // Short format
-		AddResultString( is_rd_minus ? "K28.5 RD-" : "K28.5 RD+" );          // Medium format (default)
-		AddResultString( is_rd_minus ? "K28.5: 001111|1010" : "K28.5: 110000|0101" ); // Detailed format
-	}
-	else if( frame.mFlags == 1 ) // Valid symbol but not K28.5
+	if( frame.mType == 1 || frame.mType == 0)
 	{
 		// Use shared utility for symbol naming
-		U16 decoded_value = frame.mData1;
+		U16 ten_bit_pattern = frame.mData2;
+		auto decode_result = decode8b10bSymbolUtils::DecodeSymbol(ten_bit_pattern);
+		U16 decoded_value = std::get<0>(decode_result);
+		bool disparity = std::get<1>(decode_result); // false=RD-, true=RD+
+		bool is_valid = std::get<2>(decode_result);
+
 		const char* symbol_name = decode8b10bSymbolUtils::GetSymbolName(decoded_value);
+
+		char number_str[128];
+		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
+		char long_str[128];
+		sprintf( long_str, "%s%s", symbol_name, disparity ? " RD+" : " RD-" );       // Medium format (default)
+
+		// Multi-level display with correct RD
+		if( frame.mType == 0) {
+			AddResultString( number_str );
+			char data_str[128];
+			sprintf( data_str, "%s (%s)", number_str, long_str); 
+			AddResultString( data_str );
+		}
+		else {
+			AddResultString( symbol_name );                                           // Short format
+			AddResultString( long_str );
+		}
 		
-		char hex_str[32];
-		sprintf( hex_str, "0x%02X", decoded_value );
 		
-		AddResultString( symbol_name );                  // Short: D10.2 or K28.0
-		AddResultString( symbol_name );                  // Medium: D10.2 or K28.0  
-		AddResultString( hex_str );                      // Detailed: 0x4A
 	}
 	else
 	{

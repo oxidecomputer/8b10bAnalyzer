@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cmake:*)",
       "Bash(grep:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -26,23 +26,38 @@ void decode8b10bAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& c
 	{
 		// Use shared utility for symbol naming
 		U16 ten_bit_pattern = frame.mData2;
+		
 		auto decode_result = decode8b10bSymbolUtils::DecodeSymbol(ten_bit_pattern);
 		U16 decoded_value = std::get<0>(decode_result);
-		bool disparity = std::get<1>(decode_result); // false=RD-, true=RD+
+		decode8b10bSymbolUtils::Disparity disparity = std::get<1>(decode_result);
 		bool is_valid = std::get<2>(decode_result);
 
 		const char* symbol_name = decode8b10bSymbolUtils::GetSymbolName(decoded_value);
 
+		char disp_str[32];
+		if( disparity == decode8b10bSymbolUtils::Disparity::Positive )
+		{
+			sprintf( disp_str, " RD+" );
+		}
+		else if( disparity == decode8b10bSymbolUtils::Disparity::Negative )
+		{
+			sprintf( disp_str, " RD-" );
+		}
+		else
+		{
+			sprintf( disp_str, " RD+/-" );
+		}
+
 		char number_str[128];
 		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
 		char long_str[128];
-		sprintf( long_str, "%s%s", symbol_name, disparity ? " RD+" : " RD-" );       // Medium format (default)
+		sprintf( long_str, "%s%s", symbol_name, disp_str );       // Medium format (default)
 
 		// Multi-level display with correct RD
 		if( frame.mType == 0) {
 			AddResultString( number_str );
-			char data_str[128];
-			sprintf( data_str, "%s (%s)", number_str, long_str); 
+			char data_str[512];
+			snprintf( data_str, sizeof(data_str), "%s (%s)", number_str, long_str); 
 			AddResultString( data_str );
 		}
 		else {
@@ -122,16 +137,16 @@ void decode8b10bAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Disp
 	Frame frame = GetFrame( frame_index );
 	ClearTabularText();
 
-	if( frame.mFlags == 1 && frame.mData1 == 0xBC )
-	{
-		AddTabularText( "K28.5" );
-	}
-	else
-	{
-		char number_str[128];
-		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-		AddTabularText( number_str );
-	}
+	// if( frame.mFlags == 1 && frame.mData1 == 0xBC )
+	// {
+	// 	AddTabularText( "K28.5" );
+	// }
+	// else
+	// {
+	// 	char number_str[128];
+	// 	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
+	// 	AddTabularText( number_str );
+	// }
 #endif
 }
 

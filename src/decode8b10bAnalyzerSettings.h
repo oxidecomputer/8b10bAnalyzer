@@ -18,10 +18,12 @@ public:
 	
 	Channel mInputChannel;
 	U32 mBitRate;
+	bool mDropIdleFrames;
 
 protected:
 	AnalyzerSettingInterfaceChannel	mInputChannelInterface;
 	AnalyzerSettingInterfaceInteger	mBitRateInterface;
+	AnalyzerSettingInterfaceBool	mDropIdleFramesInterface;
 };
 
 #endif //DECODE8B10B_ANALYZER_SETTINGS

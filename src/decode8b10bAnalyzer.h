@@ -22,6 +22,9 @@ public:
 	virtual const char* GetAnalyzerName() const;
 	virtual bool NeedsRerun();
 
+private:
+	U8 CountOnes(U16 value);
+
 protected: //vars
 	decode8b10bAnalyzerSettings mSettings;
 	std::unique_ptr<decode8b10bAnalyzerResults> mResults;

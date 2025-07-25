@@ -91,281 +91,281 @@ const char* decode8b10bSymbolUtils::GetSymbolName(U16 decoded_octet)
 	return "UNKNOWN";
 }
 
-std::tuple<U16, bool, bool> decode8b10bSymbolUtils::DecodeSymbol(U16 ten_bit_code)
+std::tuple<U16, decode8b10bSymbolUtils::Disparity, bool> decode8b10bSymbolUtils::DecodeSymbol(U16 ten_bit_code)
 {
 	// Complete 8b/10b lookup table using verified patterns for LSB-first sampling
 	// Based on working K28.5 and observed D-character patterns
-	// Map: 10-bit code -> pair<8-bit decoded value, disparity (false=RD-, true=RD+)>
-	static const std::map<U16, std::pair<U16, bool>> decode_map = {
+	// Map: 10-bit code -> pair<8-bit decoded value, disparity (Negative/Positive)>
+	static const std::map<U16, std::pair<U16, Disparity>> decode_map = {
 		
-		{0x274, {0x00, false}}, {0x18b, {0x00, true}}, // D0.0: 0b1001110100 RD-, 0b0110001011 RD+
-		{0x1d4, {0x01, false}}, {0x22b, {0x01, true}}, // D1.0: 0b0111010100 RD-, 0b1000101011 RD+
-		{0x2d4, {0x02, false}}, {0x12b, {0x02, true}}, // D2.0: 0b1011010100 RD-, 0b0100101011 RD+
-		{0x31b, {0x03, false}}, {0x314, {0x03, true}}, // D3.0: 0b1100011011 RD-, 0b1100010100 RD+
-		{0x354, {0x04, false}}, {0x0ab, {0x04, true}}, // D4.0: 0b1101010100 RD-, 0b0010101011 RD+
-		{0x29b, {0x05, false}}, {0x294, {0x05, true}}, // D5.0: 0b1010011011 RD-, 0b1010010100 RD+
-		{0x19b, {0x06, false}}, {0x194, {0x06, true}}, // D6.0: 0b0110011011 RD-, 0b0110010100 RD+
-		{0x38b, {0x07, false}}, {0x074, {0x07, true}}, // D7.0: 0b1110001011 RD-, 0b0001110100 RD+
-		{0x394, {0x08, false}}, {0x06b, {0x08, true}}, // D8.0: 0b1110010100 RD-, 0b0001101011 RD+
-		{0x25b, {0x09, false}}, {0x254, {0x09, true}}, // D9.0: 0b1001011011 RD-, 0b1001010100 RD+
-		{0x15b, {0x0a, false}}, {0x154, {0x0a, true}}, // D10.0: 0b0101011011 RD-, 0b0101010100 RD+
-		{0x34b, {0x0b, false}}, {0x344, {0x0b, true}}, // D11.0: 0b1101001011 RD-, 0b1101000100 RD+
-		{0x0db, {0x0c, false}}, {0x0d4, {0x0c, true}}, // D12.0: 0b0011011011 RD-, 0b0011010100 RD+
-		{0x2cb, {0x0d, false}}, {0x2c4, {0x0d, true}}, // D13.0: 0b1011001011 RD-, 0b1011000100 RD+
-		{0x1cb, {0x0e, false}}, {0x1c4, {0x0e, true}}, // D14.0: 0b0111001011 RD-, 0b0111000100 RD+
-		{0x174, {0x0f, false}}, {0x28b, {0x0f, true}}, // D15.0: 0b0101110100 RD-, 0b1010001011 RD+
-		{0x1b4, {0x10, false}}, {0x24b, {0x10, true}}, // D16.0: 0b0110110100 RD-, 0b1001001011 RD+
-		{0x23b, {0x11, false}}, {0x234, {0x11, true}}, // D17.0: 0b1000111011 RD-, 0b1000110100 RD+
-		{0x13b, {0x12, false}}, {0x134, {0x12, true}}, // D18.0: 0b0100111011 RD-, 0b0100110100 RD+
-		{0x32b, {0x13, false}}, {0x324, {0x13, true}}, // D19.0: 0b1100101011 RD-, 0b1100100100 RD+
-		{0x0bb, {0x14, false}}, {0x0b4, {0x14, true}}, // D20.0: 0b0010111011 RD-, 0b0010110100 RD+
-		{0x2ab, {0x15, false}}, {0x2a4, {0x15, true}}, // D21.0: 0b1010101011 RD-, 0b1010100100 RD+
-		{0x1ab, {0x16, false}}, {0x1a4, {0x16, true}}, // D22.0: 0b0110101011 RD-, 0b0110100100 RD+
-		{0x3a4, {0x17, false}}, {0x05b, {0x17, true}}, // D23.0: 0b1110100100 RD-, 0b0001011011 RD+
-		{0x334, {0x18, false}}, {0x0cb, {0x18, true}}, // D24.0: 0b1100110100 RD-, 0b0011001011 RD+
-		{0x26b, {0x19, false}}, {0x264, {0x19, true}}, // D25.0: 0b1001101011 RD-, 0b1001100100 RD+
-		{0x16b, {0x1a, false}}, {0x164, {0x1a, true}}, // D26.0: 0b0101101011 RD-, 0b0101100100 RD+
-		{0x364, {0x1b, false}}, {0x09b, {0x1b, true}}, // D27.0: 0b1101100100 RD-, 0b0010011011 RD+
-		{0x0eb, {0x1c, false}}, {0x0e4, {0x1c, true}}, // D28.0: 0b0011101011 RD-, 0b0011100100 RD+
-		{0x2e4, {0x1d, false}}, {0x11b, {0x1d, true}}, // D29.0: 0b1011100100 RD-, 0b0100011011 RD+
-		{0x1e4, {0x1e, false}}, {0x21b, {0x1e, true}}, // D30.0: 0b0111100100 RD-, 0b1000011011 RD+
-		{0x2b4, {0x1f, false}}, {0x14b, {0x1f, true}}, // D31.0: 0b1010110100 RD-, 0b0101001011 RD+
-		{0x279, {0x20, false}}, {0x189, {0x20, true}}, // D00.1: 0b1001111001 RD-, 0b0110001001 RD+
-		{0x1d9, {0x21, false}}, {0x229, {0x21, true}}, // D01.1: 0b0111011001 RD-, 0b1000101001 RD+
-		{0x2d9, {0x22, false}}, {0x129, {0x22, true}}, // D02.1: 0b1011011001 RD-, 0b0100101001 RD+
-		{0x319, {0x23, false}}, {0x319, {0x23, true}}, // D03.1: 0b1100011001 RD-, 0b1100011001 RD+
-		{0x359, {0x24, false}}, {0x0a9, {0x24, true}}, // D04.1: 0b1101011001 RD-, 0b0010101001 RD+
-		{0x299, {0x25, false}}, {0x299, {0x25, true}}, // D05.1: 0b1010011001 RD-, 0b1010011001 RD+
-		{0x199, {0x26, false}}, {0x199, {0x26, true}}, // D06.1: 0b0110011001 RD-, 0b0110011001 RD+
-		{0x389, {0x27, false}}, {0x079, {0x27, true}}, // D07.1: 0b1110001001 RD-, 0b0001111001 RD+
-		{0x399, {0x28, false}}, {0x069, {0x28, true}}, // D08.1: 0b1110011001 RD-, 0b0001101001 RD+
-		{0x259, {0x29, false}}, {0x259, {0x29, true}}, // D09.1: 0b1001011001 RD-, 0b1001011001 RD+
-		{0x159, {0x2a, false}}, {0x159, {0x2a, true}}, // D10.1: 0b0101011001 RD-, 0b0101011001 RD+
-		{0x349, {0x2b, false}}, {0x349, {0x2b, true}}, // D11.1: 0b1101001001 RD-, 0b1101001001 RD+
-		{0x0d9, {0x2c, false}}, {0x0d9, {0x2c, true}}, // D12.1: 0b0011011001 RD-, 0b0011011001 RD+
-		{0x2c9, {0x2d, false}}, {0x2c9, {0x2d, true}}, // D13.1: 0b1011001001 RD-, 0b1011001001 RD+
-		{0x1c9, {0x2e, false}}, {0x1c9, {0x2e, true}}, // D14.1: 0b0111001001 RD-, 0b0111001001 RD+
-		{0x179, {0x2f, false}}, {0x289, {0x2f, true}}, // D15.1: 0b0101111001 RD-, 0b1010001001 RD+
-		{0x1b9, {0x30, false}}, {0x249, {0x30, true}}, // D16.1: 0b0110111001 RD-, 0b1001001001 RD+
-		{0x239, {0x31, false}}, {0x239, {0x31, true}}, // D17.1: 0b1000111001 RD-, 0b1000111001 RD+
-		{0x139, {0x32, false}}, {0x139, {0x32, true}}, // D18.1: 0b0100111001 RD-, 0b0100111001 RD+
-		{0x329, {0x33, false}}, {0x329, {0x33, true}}, // D19.1: 0b1100101001 RD-, 0b1100101001 RD+
-		{0x0b9, {0x34, false}}, {0x0b9, {0x34, true}}, // D20.1: 0b0010111001 RD-, 0b0010111001 RD+
-		{0x2a9, {0x35, false}}, {0x2a9, {0x35, true}}, // D21.1: 0b1010101001 RD-, 0b1010101001 RD+
-		{0x1a9, {0x36, false}}, {0x1a9, {0x36, true}}, // D22.1: 0b0110101001 RD-, 0b0110101001 RD+
-		{0x3a9, {0x37, false}}, {0x059, {0x37, true}}, // D23.1: 0b1110101001 RD-, 0b0001011001 RD+
-		{0x339, {0x38, false}}, {0x0c9, {0x38, true}}, // D24.1: 0b1100111001 RD-, 0b0011001001 RD+
-		{0x269, {0x39, false}}, {0x269, {0x39, true}}, // D25.1: 0b1001101001 RD-, 0b1001101001 RD+
-		{0x169, {0x3a, false}}, {0x169, {0x3a, true}}, // D26.1: 0b0101101001 RD-, 0b0101101001 RD+
-		{0x369, {0x3b, false}}, {0x099, {0x3b, true}}, // D27.1: 0b1101101001 RD-, 0b0010011001 RD+
-		{0x0e9, {0x3c, false}}, {0x0e9, {0x3c, true}}, // D28.1: 0b0011101001 RD-, 0b0011101001 RD+
-		{0x2e9, {0x3d, false}}, {0x119, {0x3d, true}}, // D29.1: 0b1011101001 RD-, 0b0100011001 RD+
-		{0x1e9, {0x3e, false}}, {0x219, {0x3e, true}}, // D30.1: 0b0111101001 RD-, 0b1000011001 RD+
-		{0x2b9, {0x3f, false}}, {0x149, {0x3f, true}}, // D31.1: 0b1010111001 RD-, 0b0101001001 RD+
-		{0x275, {0x40, false}}, {0x185, {0x40, true}}, // D0.2: 0b1001110101 RD-, 0b0110000101 RD+
-		{0x1d5, {0x41, false}}, {0x225, {0x41, true}}, // D1.2: 0b0111010101 RD-, 0b1000100101 RD+
-		{0x2d5, {0x42, false}}, {0x125, {0x42, true}}, // D2.2: 0b1011010101 RD-, 0b0100100101 RD+
-		{0x315, {0x43, false}}, {0x315, {0x43, true}}, // D3.2: 0b1100010101 RD-, 0b1100010101 RD+
-		{0x355, {0x44, false}}, {0x0a5, {0x44, true}}, // D4.2: 0b1101010101 RD-, 0b0010100101 RD+
-		{0x295, {0x45, false}}, {0x295, {0x45, true}}, // D5.2: 0b1010010101 RD-, 0b1010010101 RD+
-		{0x195, {0x46, false}}, {0x195, {0x46, true}}, // D6.2: 0b0110010101 RD-, 0b0110010101 RD+
-		{0x385, {0x47, false}}, {0x075, {0x47, true}}, // D7.2: 0b1110000101 RD-, 0b0001110101 RD+
-		{0x395, {0x48, false}}, {0x065, {0x48, true}}, // D8.2: 0b1110010101 RD-, 0b0001100101 RD+
-		{0x255, {0x49, false}}, {0x255, {0x49, true}}, // D9.2: 0b1001010101 RD-, 0b1001010101 RD+
-		{0x155, {0x4a, false}}, {0x155, {0x4a, true}}, // D10.2: 0b0101010101 RD-, 0b0101010101 RD+
-		{0x345, {0x4b, false}}, {0x345, {0x4b, true}}, // D11.2: 0b1101000101 RD-, 0b1101000101 RD+
-		{0x0d5, {0x4c, false}}, {0x0d5, {0x4c, true}}, // D12.2: 0b0011010101 RD-, 0b0011010101 RD+
-		{0x2c5, {0x4d, false}}, {0x2c5, {0x4d, true}}, // D13.2: 0b1011000101 RD-, 0b1011000101 RD+
-		{0x1c5, {0x4e, false}}, {0x1c5, {0x4e, true}}, // D14.2: 0b0111000101 RD-, 0b0111000101 RD+
-		{0x175, {0x4f, false}}, {0x285, {0x4f, true}}, // D15.2: 0b0101110101 RD-, 0b1010000101 RD+
-		{0x1b5, {0x50, false}}, {0x245, {0x50, true}}, // D16.2: 0b0110110101 RD-, 0b1001000101 RD+
-		{0x235, {0x51, false}}, {0x235, {0x51, true}}, // D17.2: 0b1000110101 RD-, 0b1000110101 RD+
-		{0x135, {0x52, false}}, {0x135, {0x52, true}}, // D18.2: 0b0100110101 RD-, 0b0100110101 RD+
-		{0x325, {0x53, false}}, {0x325, {0x53, true}}, // D19.2: 0b1100100101 RD-, 0b1100100101 RD+
-		{0x0b5, {0x54, false}}, {0x0b5, {0x54, true}}, // D20.2: 0b0010110101 RD-, 0b0010110101 RD+
-		{0x2a5, {0x55, false}}, {0x2a5, {0x55, true}}, // D21.2: 0b1010100101 RD-, 0b1010100101 RD+
-		{0x1a5, {0x56, false}}, {0x1a5, {0x56, true}}, // D22.2: 0b0110100101 RD-, 0b0110100101 RD+
-		{0x3a5, {0x57, false}}, {0x055, {0x57, true}}, // D23.2: 0b1110100101 RD-, 0b0001010101 RD+
-		{0x335, {0x58, false}}, {0x0c5, {0x58, true}}, // D24.2: 0b1100110101 RD-, 0b0011000101 RD+
-		{0x265, {0x59, false}}, {0x265, {0x59, true}}, // D25.2: 0b1001100101 RD-, 0b1001100101 RD+
-		{0x165, {0x5a, false}}, {0x165, {0x5a, true}}, // D26.2: 0b0101100101 RD-, 0b0101100101 RD+
-		{0x365, {0x5b, false}}, {0x095, {0x5b, true}}, // D27.2: 0b1101100101 RD-, 0b0010010101 RD+
-		{0x0e5, {0x5c, false}}, {0x0e5, {0x5c, true}}, // D28.2: 0b0011100101 RD-, 0b0011100101 RD+
-		{0x2e5, {0x5d, false}}, {0x115, {0x5d, true}}, // D29.2: 0b1011100101 RD-, 0b0100010101 RD+
-		{0x1e5, {0x5e, false}}, {0x215, {0x5e, true}}, // D30.2: 0b0111100101 RD-, 0b1000010101 RD+
-		{0x2b5, {0x5f, false}}, {0x145, {0x5f, true}}, // D31.2: 0b1010110101 RD-, 0b0101000101 RD+
-		{0x273, {0x60, false}}, {0x18c, {0x60, true}}, // D0.3: 0b1001110011 RD-, 0b0110001100 RD+
-		{0x1d3, {0x61, false}}, {0x22c, {0x61, true}}, // D1.3: 0b0111010011 RD-, 0b1000101100 RD+
-		{0x2d3, {0x62, false}}, {0x12c, {0x62, true}}, // D2.3: 0b1011010011 RD-, 0b0100101100 RD+
-		{0x31c, {0x63, false}}, {0x313, {0x63, true}}, // D3.3: 0b1100011100 RD-, 0b1100010011 RD+
-		{0x353, {0x64, false}}, {0x0ac, {0x64, true}}, // D4.3: 0b1101010011 RD-, 0b0010101100 RD+
-		{0x29c, {0x65, false}}, {0x293, {0x65, true}}, // D5.3: 0b1010011100 RD-, 0b1010010011 RD+
-		{0x19c, {0x66, false}}, {0x193, {0x66, true}}, // D6.3: 0b0110011100 RD-, 0b0110010011 RD+
-		{0x38c, {0x67, false}}, {0x073, {0x67, true}}, // D7.3: 0b1110001100 RD-, 0b0001110011 RD+
-		{0x393, {0x68, false}}, {0x06c, {0x68, true}}, // D8.3: 0b1110010011 RD-, 0b0001101100 RD+
-		{0x25c, {0x69, false}}, {0x253, {0x69, true}}, // D9.3: 0b1001011100 RD-, 0b1001010011 RD+
-		{0x15c, {0x6a, false}}, {0x153, {0x6a, true}}, // D10.3: 0b0101011100 RD-, 0b0101010011 RD+
-		{0x34c, {0x6b, false}}, {0x343, {0x6b, true}}, // D11.3: 0b1101001100 RD-, 0b1101000011 RD+
-		{0x0dc, {0x6c, false}}, {0x0d3, {0x6c, true}}, // D12.3: 0b0011011100 RD-, 0b0011010011 RD+
-		{0x2cc, {0x6d, false}}, {0x2c3, {0x6d, true}}, // D13.3: 0b1011001100 RD-, 0b1011000011 RD+
-		{0x1cc, {0x6e, false}}, {0x1c3, {0x6e, true}}, // D14.3: 0b0111001100 RD-, 0b0111000011 RD+
-		{0x173, {0x6f, false}}, {0x28c, {0x6f, true}}, // D15.3: 0b0101110011 RD-, 0b1010001100 RD+
-		{0x1b3, {0x70, false}}, {0x24c, {0x70, true}}, // D16.3: 0b0110110011 RD-, 0b1001001100 RD+
-		{0x23c, {0x71, false}}, {0x233, {0x71, true}}, // D17.3: 0b1000111100 RD-, 0b1000110011 RD+
-		{0x13c, {0x72, false}}, {0x133, {0x72, true}}, // D18.3: 0b0100111100 RD-, 0b0100110011 RD+
-		{0x32c, {0x73, false}}, {0x323, {0x73, true}}, // D19.3: 0b1100101100 RD-, 0b1100100011 RD+
-		{0x0bc, {0x74, false}}, {0x0b3, {0x74, true}}, // D20.3: 0b0010111100 RD-, 0b0010110011 RD+
-		{0x2ac, {0x75, false}}, {0x2a3, {0x75, true}}, // D21.3: 0b1010101100 RD-, 0b1010100011 RD+
-		{0x1ac, {0x76, false}}, {0x1a3, {0x76, true}}, // D22.3: 0b0110101100 RD-, 0b0110100011 RD+
-		{0x3a3, {0x77, false}}, {0x05c, {0x77, true}}, // D23.3: 0b1110100011 RD-, 0b0001011100 RD+
-		{0x333, {0x78, false}}, {0x0cc, {0x78, true}}, // D24.3: 0b1100110011 RD-, 0b0011001100 RD+
-		{0x26c, {0x79, false}}, {0x263, {0x79, true}}, // D25.3: 0b1001101100 RD-, 0b1001100011 RD+
-		{0x16c, {0x7a, false}}, {0x163, {0x7a, true}}, // D26.3: 0b0101101100 RD-, 0b0101100011 RD+
-		{0x363, {0x7b, false}}, {0x09c, {0x7b, true}}, // D27.3: 0b1101100011 RD-, 0b0010011100 RD+
-		{0x0ec, {0x7c, false}}, {0x0e3, {0x7c, true}}, // D28.3: 0b0011101100 RD-, 0b0011100011 RD+
-		{0x2e3, {0x7d, false}}, {0x11c, {0x7d, true}}, // D29.3: 0b1011100011 RD-, 0b0100011100 RD+
-		{0x1e3, {0x7e, false}}, {0x21c, {0x7e, true}}, // D30.3: 0b0111100011 RD-, 0b1000011100 RD+
-		{0x2b3, {0x7f, false}}, {0x14c, {0x7f, true}}, // D31.3: 0b1010110011 RD-, 0b0101001100 RD+
-		{0x272, {0x80, false}}, {0x18d, {0x80, true}}, // D00.4: 0b1001110010 RD-, 0b0110001101 RD+
-		{0x1d2, {0x81, false}}, {0x22d, {0x81, true}}, // D01.4: 0b0111010010 RD-, 0b1000101101 RD+
-		{0x2d2, {0x82, false}}, {0x12d, {0x82, true}}, // D02.4: 0b1011010010 RD-, 0b0100101101 RD+
-		{0x31d, {0x83, false}}, {0x312, {0x83, true}}, // D03.4: 0b1100011101 RD-, 0b1100010010 RD+
-		{0x352, {0x84, false}}, {0x0ad, {0x84, true}}, // D04.4: 0b1101010010 RD-, 0b0010101101 RD+
-		{0x29d, {0x85, false}}, {0x292, {0x85, true}}, // D05.4: 0b1010011101 RD-, 0b1010010010 RD+
-		{0x19d, {0x86, false}}, {0x192, {0x86, true}}, // D06.4: 0b0110011101 RD-, 0b0110010010 RD+
-		{0x38d, {0x87, false}}, {0x072, {0x87, true}}, // D07.4: 0b1110001101 RD-, 0b0001110010 RD+
-		{0x392, {0x88, false}}, {0x06d, {0x88, true}}, // D08.4: 0b1110010010 RD-, 0b0001101101 RD+
-		{0x25d, {0x89, false}}, {0x252, {0x89, true}}, // D09.4: 0b1001011101 RD-, 0b1001010010 RD+
-		{0x15d, {0x8a, false}}, {0x152, {0x8a, true}}, // D10.4: 0b0101011101 RD-, 0b0101010010 RD+
-		{0x34d, {0x8b, false}}, {0x342, {0x8b, true}}, // D11.4: 0b1101001101 RD-, 0b1101000010 RD+
-		{0x0dd, {0x8c, false}}, {0x0d2, {0x8c, true}}, // D12.4: 0b0011011101 RD-, 0b0011010010 RD+
-		{0x2cd, {0x8d, false}}, {0x2c2, {0x8d, true}}, // D13.4: 0b1011001101 RD-, 0b1011000010 RD+
-		{0x1cd, {0x8e, false}}, {0x1c2, {0x8e, true}}, // D14.4: 0b0111001101 RD-, 0b0111000010 RD+
-		{0x172, {0x8f, false}}, {0x28d, {0x8f, true}}, // D15.4: 0b0101110010 RD-, 0b1010001101 RD+
-		{0x1b2, {0x90, false}}, {0x24d, {0x90, true}}, // D16.4: 0b0110110010 RD-, 0b1001001101 RD+
-		{0x23d, {0x91, false}}, {0x232, {0x91, true}}, // D17.4: 0b1000111101 RD-, 0b1000110010 RD+
-		{0x13d, {0x92, false}}, {0x132, {0x92, true}}, // D18.4: 0b0100111101 RD-, 0b0100110010 RD+
-		{0x32d, {0x93, false}}, {0x322, {0x93, true}}, // D19.4: 0b1100101101 RD-, 0b1100100010 RD+
-		{0x0bd, {0x94, false}}, {0x0b2, {0x94, true}}, // D20.4: 0b0010111101 RD-, 0b0010110010 RD+
-		{0x2ad, {0x95, false}}, {0x2a2, {0x95, true}}, // D21.4: 0b1010101101 RD-, 0b1010100010 RD+
-		{0x1ad, {0x96, false}}, {0x1a2, {0x96, true}}, // D22.4: 0b0110101101 RD-, 0b0110100010 RD+
-		{0x3a2, {0x97, false}}, {0x05d, {0x97, true}}, // D23.4: 0b1110100010 RD-, 0b0001011101 RD+
-		{0x332, {0x98, false}}, {0x0cd, {0x98, true}}, // D24.4: 0b1100110010 RD-, 0b0011001101 RD+
-		{0x26d, {0x99, false}}, {0x262, {0x99, true}}, // D25.4: 0b1001101101 RD-, 0b1001100010 RD+
-		{0x16d, {0x9a, false}}, {0x162, {0x9a, true}}, // D26.4: 0b0101101101 RD-, 0b0101100010 RD+
-		{0x362, {0x9b, false}}, {0x09d, {0x9b, true}}, // D27.4: 0b1101100010 RD-, 0b0010011101 RD+
-		{0x0ed, {0x9c, false}}, {0x0e2, {0x9c, true}}, // D28.4: 0b0011101101 RD-, 0b0011100010 RD+
-		{0x2e2, {0x9d, false}}, {0x11d, {0x9d, true}}, // D29.4: 0b1011100010 RD-, 0b0100011101 RD+
-		{0x1e2, {0x9e, false}}, {0x21d, {0x9e, true}}, // D30.4: 0b0111100010 RD-, 0b1000011101 RD+
-		{0x2b2, {0x9f, false}}, {0x14d, {0x9f, true}}, // D31.4: 0b1010110010 RD-, 0b0101001101 RD+
-		{0x27a, {0xa0, false}}, {0x18a, {0xa0, true}}, // D00.5: 0b1001111010 RD-, 0b0110001010 RD+
-		{0x1da, {0xa1, false}}, {0x22a, {0xa1, true}}, // D01.5: 0b0111011010 RD-, 0b1000101010 RD+
-		{0x2da, {0xa2, false}}, {0x12a, {0xa2, true}}, // D02.5: 0b1011011010 RD-, 0b0100101010 RD+
-		{0x31a, {0xa3, false}}, {0x31a, {0xa3, true}}, // D03.5: 0b1100011010 RD-, 0b1100011010 RD+
-		{0x35a, {0xa4, false}}, {0x0aa, {0xa4, true}}, // D04.5: 0b1101011010 RD-, 0b0010101010 RD+
-		{0x29a, {0xa5, false}}, {0x29a, {0xa5, true}}, // D05.5: 0b1010011010 RD-, 0b1010011010 RD+
-		{0x19a, {0xa6, false}}, {0x19a, {0xa6, true}}, // D06.5: 0b0110011010 RD-, 0b0110011010 RD+
-		{0x38a, {0xa7, false}}, {0x07a, {0xa7, true}}, // D07.5: 0b1110001010 RD-, 0b0001111010 RD+
-		{0x39a, {0xa8, false}}, {0x06a, {0xa8, true}}, // D08.5: 0b1110011010 RD-, 0b0001101010 RD+
-		{0x25a, {0xa9, false}}, {0x25a, {0xa9, true}}, // D09.5: 0b1001011010 RD-, 0b1001011010 RD+
-		{0x15a, {0xaa, false}}, {0x15a, {0xaa, true}}, // D10.5: 0b0101011010 RD-, 0b0101011010 RD+
-		{0x34a, {0xab, false}}, {0x34a, {0xab, true}}, // D11.5: 0b1101001010 RD-, 0b1101001010 RD+
-		{0x0da, {0xac, false}}, {0x0da, {0xac, true}}, // D12.5: 0b0011011010 RD-, 0b0011011010 RD+
-		{0x2ca, {0xad, false}}, {0x2ca, {0xad, true}}, // D13.5: 0b1011001010 RD-, 0b1011001010 RD+
-		{0x1ca, {0xae, false}}, {0x1ca, {0xae, true}}, // D14.5: 0b0111001010 RD-, 0b0111001010 RD+
-		{0x17a, {0xaf, false}}, {0x28a, {0xaf, true}}, // D15.5: 0b0101111010 RD-, 0b1010001010 RD+
-		{0x1ba, {0xb0, false}}, {0x24a, {0xb0, true}}, // D16.5: 0b0110111010 RD-, 0b1001001010 RD+
-		{0x23a, {0xb1, false}}, {0x23a, {0xb1, true}}, // D17.5: 0b1000111010 RD-, 0b1000111010 RD+
-		{0x13a, {0xb2, false}}, {0x13a, {0xb2, true}}, // D18.5: 0b0100111010 RD-, 0b0100111010 RD+
-		{0x32a, {0xb3, false}}, {0x32a, {0xb3, true}}, // D19.5: 0b1100101010 RD-, 0b1100101010 RD+
-		{0x0ba, {0xb4, false}}, {0x0ba, {0xb4, true}}, // D20.5: 0b0010111010 RD-, 0b0010111010 RD+
-		{0x2aa, {0xb5, false}}, {0x2aa, {0xb5, true}}, // D21.5: 0b1010101010 RD-, 0b1010101010 RD+
-		{0x1aa, {0xb6, false}}, {0x1aa, {0xb6, true}}, // D22.5: 0b0110101010 RD-, 0b0110101010 RD+
-		{0x3aa, {0xb7, false}}, {0x05a, {0xb7, true}}, // D23.5: 0b1110101010 RD-, 0b0001011010 RD+
-		{0x33a, {0xb8, false}}, {0x0ca, {0xb8, true}}, // D24.5: 0b1100111010 RD-, 0b0011001010 RD+
-		{0x26a, {0xb9, false}}, {0x26a, {0xb9, true}}, // D25.5: 0b1001101010 RD-, 0b1001101010 RD+
-		{0x16a, {0xba, false}}, {0x16a, {0xba, true}}, // D26.5: 0b0101101010 RD-, 0b0101101010 RD+
-		{0x36a, {0xbb, false}}, {0x09a, {0xbb, true}}, // D27.5: 0b1101101010 RD-, 0b0010011010 RD+
-		{0x0ea, {0xbc, false}}, {0x0ea, {0xbc, true}}, // D28.5: 0b0011101010 RD-, 0b0011101010 RD+
-		{0x2ea, {0xbd, false}}, {0x11a, {0xbd, true}}, // D29.5: 0b1011101010 RD-, 0b0100011010 RD+
-		{0x1ea, {0xbe, false}}, {0x21a, {0xbe, true}}, // D30.5: 0b0111101010 RD-, 0b1000011010 RD+
-		{0x2ba, {0xbf, false}}, {0x14a, {0xbf, true}}, // D31.5: 0b1010111010 RD-, 0b0101001010 RD+
-		{0x276, {0xc0, false}}, {0x186, {0xc0, true}}, // D00.6: 0b1001110110 RD-, 0b0110000110 RD+
-		{0x1d6, {0xc1, false}}, {0x226, {0xc1, true}}, // D01.6: 0b0111010110 RD-, 0b1000100110 RD+
-		{0x2d6, {0xc2, false}}, {0x126, {0xc2, true}}, // D02.6: 0b1011010110 RD-, 0b0100100110 RD+
-		{0x316, {0xc3, false}}, {0x316, {0xc3, true}}, // D03.6: 0b1100010110 RD-, 0b1100010110 RD+
-		{0x356, {0xc4, false}}, {0x0a6, {0xc4, true}}, // D04.6: 0b1101010110 RD-, 0b0010100110 RD+
-		{0x296, {0xc5, false}}, {0x296, {0xc5, true}}, // D05.6: 0b1010010110 RD-, 0b1010010110 RD+
-		{0x196, {0xc6, false}}, {0x196, {0xc6, true}}, // D06.6: 0b0110010110 RD-, 0b0110010110 RD+
-		{0x386, {0xc7, false}}, {0x076, {0xc7, true}}, // D07.6: 0b1110000110 RD-, 0b0001110110 RD+
-		{0x396, {0xc8, false}}, {0x066, {0xc8, true}}, // D08.6: 0b1110010110 RD-, 0b0001100110 RD+
-		{0x256, {0xc9, false}}, {0x256, {0xc9, true}}, // D09.6: 0b1001010110 RD-, 0b1001010110 RD+
-		{0x156, {0xca, false}}, {0x156, {0xca, true}}, // D10.6: 0b0101010110 RD-, 0b0101010110 RD+
-		{0x346, {0xcb, false}}, {0x346, {0xcb, true}}, // D11.6: 0b1101000110 RD-, 0b1101000110 RD+
-		{0x0d6, {0xcc, false}}, {0x0d6, {0xcc, true}}, // D12.6: 0b0011010110 RD-, 0b0011010110 RD+
-		{0x2c6, {0xcd, false}}, {0x2c6, {0xcd, true}}, // D13.6: 0b1011000110 RD-, 0b1011000110 RD+
-		{0x1c6, {0xce, false}}, {0x1c6, {0xce, true}}, // D14.6: 0b0111000110 RD-, 0b0111000110 RD+
-		{0x176, {0xcf, false}}, {0x286, {0xcf, true}}, // D15.6: 0b0101110110 RD-, 0b1010000110 RD+
-		{0x1b6, {0xd0, false}}, {0x246, {0xd0, true}}, // D16.6: 0b0110110110 RD-, 0b1001000110 RD+
-		{0x236, {0xd1, false}}, {0x236, {0xd1, true}}, // D17.6: 0b1000110110 RD-, 0b1000110110 RD+
-		{0x136, {0xd2, false}}, {0x136, {0xd2, true}}, // D18.6: 0b0100110110 RD-, 0b0100110110 RD+
-		{0x326, {0xd3, false}}, {0x326, {0xd3, true}}, // D19.6: 0b1100100110 RD-, 0b1100100110 RD+
-		{0x0b6, {0xd4, false}}, {0x0b6, {0xd4, true}}, // D20.6: 0b0010110110 RD-, 0b0010110110 RD+
-		{0x2a6, {0xd5, false}}, {0x2a6, {0xd5, true}}, // D21.6: 0b1010100110 RD-, 0b1010100110 RD+
-		{0x1a6, {0xd6, false}}, {0x1a6, {0xd6, true}}, // D22.6: 0b0110100110 RD-, 0b0110100110 RD+
-		{0x3a6, {0xd7, false}}, {0x056, {0xd7, true}}, // D23.6: 0b1110100110 RD-, 0b0001010110 RD+
-		{0x336, {0xd8, false}}, {0x0c6, {0xd8, true}}, // D24.6: 0b1100110110 RD-, 0b0011000110 RD+
-		{0x266, {0xd9, false}}, {0x266, {0xd9, true}}, // D25.6: 0b1001100110 RD-, 0b1001100110 RD+
-		{0x166, {0xda, false}}, {0x166, {0xda, true}}, // D26.6: 0b0101100110 RD-, 0b0101100110 RD+
-		{0x366, {0xdb, false}}, {0x096, {0xdb, true}}, // D27.6: 0b1101100110 RD-, 0b0010010110 RD+
-		{0x0e6, {0xdc, false}}, {0x0e6, {0xdc, true}}, // D28.6: 0b0011100110 RD-, 0b0011100110 RD+
-		{0x2e6, {0xdd, false}}, {0x116, {0xdd, true}}, // D29.6: 0b1011100110 RD-, 0b0100010110 RD+
-		{0x1e6, {0xde, false}}, {0x216, {0xde, true}}, // D30.6: 0b0111100110 RD-, 0b1000010110 RD+
-		{0x2b6, {0xdf, false}}, {0x146, {0xdf, true}}, // D31.6: 0b1010110110 RD-, 0b0101000110 RD+
-		{0x271, {0xe0, false}}, {0x18e, {0xe0, true}}, // D00.7: 0b1001110001 RD-, 0b0110001110 RD+
-		{0x1d1, {0xe1, false}}, {0x22e, {0xe1, true}}, // D01.7: 0b0111010001 RD-, 0b1000101110 RD+
-		{0x2d1, {0xe2, false}}, {0x12e, {0xe2, true}}, // D02.7: 0b1011010001 RD-, 0b0100101110 RD+
-		{0x31e, {0xe3, false}}, {0x311, {0xe3, true}}, // D03.7: 0b1100011110 RD-, 0b1100010001 RD+
-		{0x351, {0xe4, false}}, {0x0ae, {0xe4, true}}, // D04.7: 0b1101010001 RD-, 0b0010101110 RD+
-		{0x29e, {0xe5, false}}, {0x291, {0xe5, true}}, // D05.7: 0b1010011110 RD-, 0b1010010001 RD+
-		{0x19e, {0xe6, false}}, {0x191, {0xe6, true}}, // D06.7: 0b0110011110 RD-, 0b0110010001 RD+
-		{0x38e, {0xe7, false}}, {0x071, {0xe7, true}}, // D07.7: 0b1110001110 RD-, 0b0001110001 RD+
-		{0x391, {0xe8, false}}, {0x06e, {0xe8, true}}, // D08.7: 0b1110010001 RD-, 0b0001101110 RD+
-		{0x25e, {0xe9, false}}, {0x251, {0xe9, true}}, // D09.7: 0b1001011110 RD-, 0b1001010001 RD+
-		{0x15e, {0xea, false}}, {0x151, {0xea, true}}, // D10.7: 0b0101011110 RD-, 0b0101010001 RD+
-		{0x34e, {0xeb, false}}, {0x348, {0xeb, true}}, // D11.7: 0b1101001110 RD-, 0b1101001000 RD+
-		{0x0de, {0xec, false}}, {0x0d1, {0xec, true}}, // D12.7: 0b0011011110 RD-, 0b0011010001 RD+
-		{0x2ce, {0xed, false}}, {0x2c8, {0xed, true}}, // D13.7: 0b1011001110 RD-, 0b1011001000 RD+
-		{0x1ce, {0xee, false}}, {0x1c8, {0xee, true}}, // D14.7: 0b0111001110 RD-, 0b0111001000 RD+
-		{0x171, {0xef, false}}, {0x28e, {0xef, true}}, // D15.7: 0b0101110001 RD-, 0b1010001110 RD+
-		{0x1b1, {0xf0, false}}, {0x24e, {0xf0, true}}, // D16.7: 0b0110110001 RD-, 0b1001001110 RD+
-		{0x237, {0xf1, false}}, {0x231, {0xf1, true}}, // D17.7: 0b1000110111 RD-, 0b1000110001 RD+
-		{0x137, {0xf2, false}}, {0x131, {0xf2, true}}, // D18.7: 0b0100110111 RD-, 0b0100110001 RD+
-		{0x32e, {0xf3, false}}, {0x321, {0xf3, true}}, // D19.7: 0b1100101110 RD-, 0b1100100001 RD+
-		{0x0b7, {0xf4, false}}, {0x0b1, {0xf4, true}}, // D20.7: 0b0010110111 RD-, 0b0010110001 RD+
-		{0x2ae, {0xf5, false}}, {0x2a1, {0xf5, true}}, // D21.7: 0b1010101110 RD-, 0b1010100001 RD+
-		{0x1ae, {0xf6, false}}, {0x1a1, {0xf6, true}}, // D22.7: 0b0110101110 RD-, 0b0110100001 RD+
-		{0x3a1, {0xf7, false}}, {0x05e, {0xf7, true}}, // D23.7: 0b1110100001 RD-, 0b0001011110 RD+
-		{0x331, {0xf8, false}}, {0x0ce, {0xf8, true}}, // D24.7: 0b1100110001 RD-, 0b0011001110 RD+
-		{0x26e, {0xf9, false}}, {0x261, {0xf9, true}}, // D25.7: 0b1001101110 RD-, 0b1001100001 RD+
-		{0x16e, {0xfa, false}}, {0x161, {0xfa, true}}, // D26.7: 0b0101101110 RD-, 0b0101100001 RD+
-		{0x361, {0xfb, false}}, {0x09e, {0xfb, true}}, // D27.7: 0b1101100001 RD-, 0b0010011110 RD+
-		{0x0ee, {0xfc, false}}, {0x0e1, {0xfc, true}}, // D28.7: 0b0011101110 RD-, 0b0011100001 RD+
-		{0x2e1, {0xfd, false}}, {0x11e, {0xfd, true}}, // D29.7: 0b1011100001 RD-, 0b0100011110 RD+
-		{0x1e1, {0xfe, false}}, {0x21e, {0xfe, true}}, // D30.7: 0b0111100001 RD-, 0b1000011110 RD+
-		{0x2b1, {0xff, false}}, {0x14e, {0xff, true}}, // D31.7: 0b1010110001 RD-, 0b0101001110 RD+
-		{0x0f4, {0x11c, false}}, {0x30b, {0x11c, true}}, // b'K28.0': 0b0011110100 RD-, 0b1100001011 RD+
-		{0x0f9, {0x13c, false}}, {0x306, {0x13c, true}}, // b'K28.1': 0b0011111001 RD-, 0b1100000110 RD+
-		{0x0f5, {0x15c, false}}, {0x30a, {0x15c, true}}, // b'K28.2': 0b0011110101 RD-, 0b1100001010 RD+
-		{0x0f3, {0x17c, false}}, {0x30c, {0x17c, true}}, // b'K28.3': 0b0011110011 RD-, 0b1100001100 RD+
-		{0x0f2, {0x19c, false}}, {0x30d, {0x19c, true}}, // b'K28.4': 0b0011110010 RD-, 0b1100001101 RD+
-		{0x0fa, {0x1bc, false}}, {0x305, {0x1bc, true}}, // b'K28.5': 0b0011111010 RD-, 0b1100000101 RD+
-		{0x0f6, {0x1dc, false}}, {0x309, {0x1dc, true}}, // b'K28.6': 0b0011110110 RD-, 0b1100001001 RD+
-		{0x0f8, {0x1fc, false}}, {0x307, {0x1fc, true}}, // b'K28.7': 0b0011111000 RD-, 0b1100000111 RD+
-		{0x3a8, {0x1f7, false}}, {0x057, {0x1f7, true}}, // b'K23.7': 0b1110101000 RD-, 0b0001010111 RD+
-		{0x368, {0x1fb, false}}, {0x097, {0x1fb, true}}, // b'K27.7': 0b1101101000 RD-, 0b0010010111 RD+
-		{0x2e8, {0x1fd, false}}, {0x117, {0x1fd, true}}, // b'K29.7': 0b1011101000 RD-, 0b0100010111 RD+
-		{0x1e8, {0x1fe, false}}, {0x217, {0x1fe, true}}, // b'K30.7': 0b0111101000 RD-, 0b1000010111 RD+
+		{0x274, {0x00, Disparity::Negative}}, {0x18b, {0x00, Disparity::Positive}}, // D0.0: 0b1001110100 RD-, 0b0110001011 RD+
+		{0x1d4, {0x01, Disparity::Negative}}, {0x22b, {0x01, Disparity::Positive}}, // D1.0: 0b0111010100 RD-, 0b1000101011 RD+
+		{0x2d4, {0x02, Disparity::Negative}}, {0x12b, {0x02, Disparity::Positive}}, // D2.0: 0b1011010100 RD-, 0b0100101011 RD+
+		{0x31b, {0x03, Disparity::Negative}}, {0x314, {0x03, Disparity::Positive}}, // D3.0: 0b1100011011 RD-, 0b1100010100 RD+
+		{0x354, {0x04, Disparity::Negative}}, {0x0ab, {0x04, Disparity::Positive}}, // D4.0: 0b1101010100 RD-, 0b0010101011 RD+
+		{0x29b, {0x05, Disparity::Negative}}, {0x294, {0x05, Disparity::Positive}}, // D5.0: 0b1010011011 RD-, 0b1010010100 RD+
+		{0x19b, {0x06, Disparity::Negative}}, {0x194, {0x06, Disparity::Positive}}, // D6.0: 0b0110011011 RD-, 0b0110010100 RD+
+		{0x38b, {0x07, Disparity::Negative}}, {0x074, {0x07, Disparity::Positive}}, // D7.0: 0b1110001011 RD-, 0b0001110100 RD+
+		{0x394, {0x08, Disparity::Negative}}, {0x06b, {0x08, Disparity::Positive}}, // D8.0: 0b1110010100 RD-, 0b0001101011 RD+
+		{0x25b, {0x09, Disparity::Negative}}, {0x254, {0x09, Disparity::Positive}}, // D9.0: 0b1001011011 RD-, 0b1001010100 RD+
+		{0x15b, {0x0a, Disparity::Negative}}, {0x154, {0x0a, Disparity::Positive}}, // D10.0: 0b0101011011 RD-, 0b0101010100 RD+
+		{0x34b, {0x0b, Disparity::Negative}}, {0x344, {0x0b, Disparity::Positive}}, // D11.0: 0b1101001011 RD-, 0b1101000100 RD+
+		{0x0db, {0x0c, Disparity::Negative}}, {0x0d4, {0x0c, Disparity::Positive}}, // D12.0: 0b0011011011 RD-, 0b0011010100 RD+
+		{0x2cb, {0x0d, Disparity::Negative}}, {0x2c4, {0x0d, Disparity::Positive}}, // D13.0: 0b1011001011 RD-, 0b1011000100 RD+
+		{0x1cb, {0x0e, Disparity::Negative}}, {0x1c4, {0x0e, Disparity::Positive}}, // D14.0: 0b0111001011 RD-, 0b0111000100 RD+
+		{0x174, {0x0f, Disparity::Negative}}, {0x28b, {0x0f, Disparity::Positive}}, // D15.0: 0b0101110100 RD-, 0b1010001011 RD+
+		{0x1b4, {0x10, Disparity::Negative}}, {0x24b, {0x10, Disparity::Positive}}, // D16.0: 0b0110110100 RD-, 0b1001001011 RD+
+		{0x23b, {0x11, Disparity::Negative}}, {0x234, {0x11, Disparity::Positive}}, // D17.0: 0b1000111011 RD-, 0b1000110100 RD+
+		{0x13b, {0x12, Disparity::Negative}}, {0x134, {0x12, Disparity::Positive}}, // D18.0: 0b0100111011 RD-, 0b0100110100 RD+
+		{0x32b, {0x13, Disparity::Negative}}, {0x324, {0x13, Disparity::Positive}}, // D19.0: 0b1100101011 RD-, 0b1100100100 RD+
+		{0x0bb, {0x14, Disparity::Negative}}, {0x0b4, {0x14, Disparity::Positive}}, // D20.0: 0b0010111011 RD-, 0b0010110100 RD+
+		{0x2ab, {0x15, Disparity::Negative}}, {0x2a4, {0x15, Disparity::Positive}}, // D21.0: 0b1010101011 RD-, 0b1010100100 RD+
+		{0x1ab, {0x16, Disparity::Negative}}, {0x1a4, {0x16, Disparity::Positive}}, // D22.0: 0b0110101011 RD-, 0b0110100100 RD+
+		{0x3a4, {0x17, Disparity::Negative}}, {0x05b, {0x17, Disparity::Positive}}, // D23.0: 0b1110100100 RD-, 0b0001011011 RD+
+		{0x334, {0x18, Disparity::Negative}}, {0x0cb, {0x18, Disparity::Positive}}, // D24.0: 0b1100110100 RD-, 0b0011001011 RD+
+		{0x26b, {0x19, Disparity::Negative}}, {0x264, {0x19, Disparity::Positive}}, // D25.0: 0b1001101011 RD-, 0b1001100100 RD+
+		{0x16b, {0x1a, Disparity::Negative}}, {0x164, {0x1a, Disparity::Positive}}, // D26.0: 0b0101101011 RD-, 0b0101100100 RD+
+		{0x364, {0x1b, Disparity::Negative}}, {0x09b, {0x1b, Disparity::Positive}}, // D27.0: 0b1101100100 RD-, 0b0010011011 RD+
+		{0x0eb, {0x1c, Disparity::Negative}}, {0x0e4, {0x1c, Disparity::Positive}}, // D28.0: 0b0011101011 RD-, 0b0011100100 RD+
+		{0x2e4, {0x1d, Disparity::Negative}}, {0x11b, {0x1d, Disparity::Positive}}, // D29.0: 0b1011100100 RD-, 0b0100011011 RD+
+		{0x1e4, {0x1e, Disparity::Negative}}, {0x21b, {0x1e, Disparity::Positive}}, // D30.0: 0b0111100100 RD-, 0b1000011011 RD+
+		{0x2b4, {0x1f, Disparity::Negative}}, {0x14b, {0x1f, Disparity::Positive}}, // D31.0: 0b1010110100 RD-, 0b0101001011 RD+
+		{0x279, {0x20, Disparity::Negative}}, {0x189, {0x20, Disparity::Positive}}, // D00.1: 0b1001111001 RD-, 0b0110001001 RD+
+		{0x1d9, {0x21, Disparity::Negative}}, {0x229, {0x21, Disparity::Positive}}, // D01.1: 0b0111011001 RD-, 0b1000101001 RD+
+		{0x2d9, {0x22, Disparity::Negative}}, {0x129, {0x22, Disparity::Positive}}, // D02.1: 0b1011011001 RD-, 0b0100101001 RD+
+		{0x319, {0x23, Disparity::Negative}}, {0x319, {0x23, Disparity::Positive}}, // D03.1: 0b1100011001 RD-, 0b1100011001 RD+
+		{0x359, {0x24, Disparity::Negative}}, {0x0a9, {0x24, Disparity::Positive}}, // D04.1: 0b1101011001 RD-, 0b0010101001 RD+
+		{0x299, {0x25, Disparity::Same}}, // D05.1: 0b1010011001 RD-, 0b1010011001 RD+
+		{0x199, {0x26, Disparity::Same}}, // D06.1: 0b0110011001 RD-, 0b0110011001 RD+
+		{0x389, {0x27, Disparity::Negative}}, {0x079, {0x27, Disparity::Positive}}, // D07.1: 0b1110001001 RD-, 0b0001111001 RD+
+		{0x399, {0x28, Disparity::Negative}}, {0x069, {0x28, Disparity::Positive}}, // D08.1: 0b1110011001 RD-, 0b0001101001 RD+
+		{0x259, {0x29, Disparity::Same}}, // D09.1: 0b1001011001 RD-, 0b1001011001 RD+
+		{0x159, {0x2a, Disparity::Same}}, // D10.1: 0b0101011001 RD-, 0b0101011001 RD+
+		{0x349, {0x2b, Disparity::Same}}, // D11.1: 0b1101001001 RD-, 0b1101001001 RD+
+		{0x0d9, {0x2c, Disparity::Same}}, // D12.1: 0b0011011001 RD-, 0b0011011001 RD+
+		{0x2c9, {0x2d, Disparity::Same}}, // D13.1: 0b1011001001 RD-, 0b1011001001 RD+
+		{0x1c9, {0x2e, Disparity::Same}}, // D14.1: 0b0111001001 RD-, 0b0111001001 RD+
+		{0x179, {0x2f, Disparity::Negative}}, {0x289, {0x2f, Disparity::Positive}}, // D15.1: 0b0101111001 RD-, 0b1010001001 RD+
+		{0x1b9, {0x30, Disparity::Negative}}, {0x249, {0x30, Disparity::Positive}}, // D16.1: 0b0110111001 RD-, 0b1001001001 RD+
+		{0x239, {0x31, Disparity::Same}}, // D17.1: 0b1000111001 RD-, 0b1000111001 RD+
+		{0x139, {0x32, Disparity::Same}}, // D18.1: 0b0100111001 RD-, 0b0100111001 RD+
+		{0x329, {0x33, Disparity::Same}}, // D19.1: 0b1100101001 RD-, 0b1100101001 RD+
+		{0x0b9, {0x34, Disparity::Same}}, // D20.1: 0b0010111001 RD-, 0b0010111001 RD+
+		{0x2a9, {0x35, Disparity::Same}}, // D21.1: 0b1010101001 RD-, 0b1010101001 RD+
+		{0x1a9, {0x36, Disparity::Same}}, // D22.1: 0b0110101001 RD-, 0b0110101001 RD+
+		{0x3a9, {0x37, Disparity::Negative}}, {0x059, {0x37, Disparity::Positive}}, // D23.1: 0b1110101001 RD-, 0b0001011001 RD+
+		{0x339, {0x38, Disparity::Negative}}, {0x0c9, {0x38, Disparity::Positive}}, // D24.1: 0b1100111001 RD-, 0b0011001001 RD+
+		{0x269, {0x39, Disparity::Same}}, // D25.1: 0b1001101001 RD-, 0b1001101001 RD+
+		{0x169, {0x3a, Disparity::Same}}, // D26.1: 0b0101101001 RD-, 0b0101101001 RD+
+		{0x369, {0x3b, Disparity::Negative}}, {0x099, {0x3b, Disparity::Positive}}, // D27.1: 0b1101101001 RD-, 0b0010011001 RD+
+		{0x0e9, {0x3c, Disparity::Same}}, // D28.1: 0b0011101001 RD-, 0b0011101001 RD+
+		{0x2e9, {0x3d, Disparity::Negative}}, {0x119, {0x3d, Disparity::Positive}}, // D29.1: 0b1011101001 RD-, 0b0100011001 RD+
+		{0x1e9, {0x3e, Disparity::Negative}}, {0x219, {0x3e, Disparity::Positive}}, // D30.1: 0b0111101001 RD-, 0b1000011001 RD+
+		{0x2b9, {0x3f, Disparity::Negative}}, {0x149, {0x3f, Disparity::Positive}}, // D31.1: 0b1010111001 RD-, 0b0101001001 RD+
+		{0x275, {0x40, Disparity::Negative}}, {0x185, {0x40, Disparity::Positive}}, // D0.2: 0b1001110101 RD-, 0b0110000101 RD+
+		{0x1d5, {0x41, Disparity::Negative}}, {0x225, {0x41, Disparity::Positive}}, // D1.2: 0b0111010101 RD-, 0b1000100101 RD+
+		{0x2d5, {0x42, Disparity::Negative}}, {0x125, {0x42, Disparity::Positive}}, // D2.2: 0b1011010101 RD-, 0b0100100101 RD+
+		{0x315, {0x43, Disparity::Same}}, // D3.2: 0b1100010101 RD-, 0b1100010101 RD+
+		{0x355, {0x44, Disparity::Negative}}, {0x0a5, {0x44, Disparity::Positive}}, // D4.2: 0b1101010101 RD-, 0b0010100101 RD+
+		{0x295, {0x45, Disparity::Same}}, // D5.2: 0b1010010101 RD-, 0b1010010101 RD+
+		{0x195, {0x46, Disparity::Same}}, // D6.2: 0b0110010101 RD-, 0b0110010101 RD+
+		{0x385, {0x47, Disparity::Negative}}, {0x075, {0x47, Disparity::Positive}}, // D7.2: 0b1110000101 RD-, 0b0001110101 RD+
+		{0x395, {0x48, Disparity::Negative}}, {0x065, {0x48, Disparity::Positive}}, // D8.2: 0b1110010101 RD-, 0b0001100101 RD+
+		{0x255, {0x49, Disparity::Same}}, // D9.2: 0b1001010101 RD-, 0b1001010101 RD+
+		{0x155, {0x4a, Disparity::Same}}, // D10.2: 0b0101010101 RD-, 0b0101010101 RD+
+		{0x345, {0x4b, Disparity::Same}}, // D11.2: 0b1101000101 RD-, 0b1101000101 RD+
+		{0x0d5, {0x4c, Disparity::Same}}, // D12.2: 0b0011010101 RD-, 0b0011010101 RD+
+		{0x2c5, {0x4d, Disparity::Same}}, // D13.2: 0b1011000101 RD-, 0b1011000101 RD+
+		{0x1c5, {0x4e, Disparity::Same}}, // D14.2: 0b0111000101 RD-, 0b0111000101 RD+
+		{0x175, {0x4f, Disparity::Negative}}, {0x285, {0x4f, Disparity::Positive}}, // D15.2: 0b0101110101 RD-, 0b1010000101 RD+
+		{0x1b5, {0x50, Disparity::Negative}}, {0x245, {0x50, Disparity::Positive}}, // D16.2: 0b0110110101 RD-, 0b1001000101 RD+
+		{0x235, {0x51, Disparity::Same}}, // D17.2: 0b1000110101 RD-, 0b1000110101 RD+
+		{0x135, {0x52, Disparity::Same}}, // D18.2: 0b0100110101 RD-, 0b0100110101 RD+
+		{0x325, {0x53, Disparity::Same}}, // D19.2: 0b1100100101 RD-, 0b1100100101 RD+
+		{0x0b5, {0x54, Disparity::Same}}, // D20.2: 0b0010110101 RD-, 0b0010110101 RD+
+		{0x2a5, {0x55, Disparity::Same}}, // D21.2: 0b1010100101 RD-, 0b1010100101 RD+
+		{0x1a5, {0x56, Disparity::Same}}, // D22.2: 0b0110100101 RD-, 0b0110100101 RD+
+		{0x3a5, {0x57, Disparity::Negative}}, {0x055, {0x57, Disparity::Positive}}, // D23.2: 0b1110100101 RD-, 0b0001010101 RD+
+		{0x335, {0x58, Disparity::Negative}}, {0x0c5, {0x58, Disparity::Positive}}, // D24.2: 0b1100110101 RD-, 0b0011000101 RD+
+		{0x265, {0x59, Disparity::Same}}, // D25.2: 0b1001100101 RD-, 0b1001100101 RD+
+		{0x165, {0x5a, Disparity::Same}}, // D26.2: 0b0101100101 RD-, 0b0101100101 RD+
+		{0x365, {0x5b, Disparity::Negative}}, {0x095, {0x5b, Disparity::Positive}}, // D27.2: 0b1101100101 RD-, 0b0010010101 RD+
+		{0x0e5, {0x5c, Disparity::Same}}, // D28.2: 0b0011100101 RD-, 0b0011100101 RD+
+		{0x2e5, {0x5d, Disparity::Negative}}, {0x115, {0x5d, Disparity::Positive}}, // D29.2: 0b1011100101 RD-, 0b0100010101 RD+
+		{0x1e5, {0x5e, Disparity::Negative}}, {0x215, {0x5e, Disparity::Positive}}, // D30.2: 0b0111100101 RD-, 0b1000010101 RD+
+		{0x2b5, {0x5f, Disparity::Negative}}, {0x145, {0x5f, Disparity::Positive}}, // D31.2: 0b1010110101 RD-, 0b0101000101 RD+
+		{0x273, {0x60, Disparity::Negative}}, {0x18c, {0x60, Disparity::Positive}}, // D0.3: 0b1001110011 RD-, 0b0110001100 RD+
+		{0x1d3, {0x61, Disparity::Negative}}, {0x22c, {0x61, Disparity::Positive}}, // D1.3: 0b0111010011 RD-, 0b1000101100 RD+
+		{0x2d3, {0x62, Disparity::Negative}}, {0x12c, {0x62, Disparity::Positive}}, // D2.3: 0b1011010011 RD-, 0b0100101100 RD+
+		{0x31c, {0x63, Disparity::Negative}}, {0x313, {0x63, Disparity::Positive}}, // D3.3: 0b1100011100 RD-, 0b1100010011 RD+
+		{0x353, {0x64, Disparity::Negative}}, {0x0ac, {0x64, Disparity::Positive}}, // D4.3: 0b1101010011 RD-, 0b0010101100 RD+
+		{0x29c, {0x65, Disparity::Negative}}, {0x293, {0x65, Disparity::Positive}}, // D5.3: 0b1010011100 RD-, 0b1010010011 RD+
+		{0x19c, {0x66, Disparity::Negative}}, {0x193, {0x66, Disparity::Positive}}, // D6.3: 0b0110011100 RD-, 0b0110010011 RD+
+		{0x38c, {0x67, Disparity::Negative}}, {0x073, {0x67, Disparity::Positive}}, // D7.3: 0b1110001100 RD-, 0b0001110011 RD+
+		{0x393, {0x68, Disparity::Negative}}, {0x06c, {0x68, Disparity::Positive}}, // D8.3: 0b1110010011 RD-, 0b0001101100 RD+
+		{0x25c, {0x69, Disparity::Negative}}, {0x253, {0x69, Disparity::Positive}}, // D9.3: 0b1001011100 RD-, 0b1001010011 RD+
+		{0x15c, {0x6a, Disparity::Negative}}, {0x153, {0x6a, Disparity::Positive}}, // D10.3: 0b0101011100 RD-, 0b0101010011 RD+
+		{0x34c, {0x6b, Disparity::Negative}}, {0x343, {0x6b, Disparity::Positive}}, // D11.3: 0b1101001100 RD-, 0b1101000011 RD+
+		{0x0dc, {0x6c, Disparity::Negative}}, {0x0d3, {0x6c, Disparity::Positive}}, // D12.3: 0b0011011100 RD-, 0b0011010011 RD+
+		{0x2cc, {0x6d, Disparity::Negative}}, {0x2c3, {0x6d, Disparity::Positive}}, // D13.3: 0b1011001100 RD-, 0b1011000011 RD+
+		{0x1cc, {0x6e, Disparity::Negative}}, {0x1c3, {0x6e, Disparity::Positive}}, // D14.3: 0b0111001100 RD-, 0b0111000011 RD+
+		{0x173, {0x6f, Disparity::Negative}}, {0x28c, {0x6f, Disparity::Positive}}, // D15.3: 0b0101110011 RD-, 0b1010001100 RD+
+		{0x1b3, {0x70, Disparity::Negative}}, {0x24c, {0x70, Disparity::Positive}}, // D16.3: 0b0110110011 RD-, 0b1001001100 RD+
+		{0x23c, {0x71, Disparity::Negative}}, {0x233, {0x71, Disparity::Positive}}, // D17.3: 0b1000111100 RD-, 0b1000110011 RD+
+		{0x13c, {0x72, Disparity::Negative}}, {0x133, {0x72, Disparity::Positive}}, // D18.3: 0b0100111100 RD-, 0b0100110011 RD+
+		{0x32c, {0x73, Disparity::Negative}}, {0x323, {0x73, Disparity::Positive}}, // D19.3: 0b1100101100 RD-, 0b1100100011 RD+
+		{0x0bc, {0x74, Disparity::Negative}}, {0x0b3, {0x74, Disparity::Positive}}, // D20.3: 0b0010111100 RD-, 0b0010110011 RD+
+		{0x2ac, {0x75, Disparity::Negative}}, {0x2a3, {0x75, Disparity::Positive}}, // D21.3: 0b1010101100 RD-, 0b1010100011 RD+
+		{0x1ac, {0x76, Disparity::Negative}}, {0x1a3, {0x76, Disparity::Positive}}, // D22.3: 0b0110101100 RD-, 0b0110100011 RD+
+		{0x3a3, {0x77, Disparity::Negative}}, {0x05c, {0x77, Disparity::Positive}}, // D23.3: 0b1110100011 RD-, 0b0001011100 RD+
+		{0x333, {0x78, Disparity::Negative}}, {0x0cc, {0x78, Disparity::Positive}}, // D24.3: 0b1100110011 RD-, 0b0011001100 RD+
+		{0x26c, {0x79, Disparity::Negative}}, {0x263, {0x79, Disparity::Positive}}, // D25.3: 0b1001101100 RD-, 0b1001100011 RD+
+		{0x16c, {0x7a, Disparity::Negative}}, {0x163, {0x7a, Disparity::Positive}}, // D26.3: 0b0101101100 RD-, 0b0101100011 RD+
+		{0x363, {0x7b, Disparity::Negative}}, {0x09c, {0x7b, Disparity::Positive}}, // D27.3: 0b1101100011 RD-, 0b0010011100 RD+
+		{0x0ec, {0x7c, Disparity::Negative}}, {0x0e3, {0x7c, Disparity::Positive}}, // D28.3: 0b0011101100 RD-, 0b0011100011 RD+
+		{0x2e3, {0x7d, Disparity::Negative}}, {0x11c, {0x7d, Disparity::Positive}}, // D29.3: 0b1011100011 RD-, 0b0100011100 RD+
+		{0x1e3, {0x7e, Disparity::Negative}}, {0x21c, {0x7e, Disparity::Positive}}, // D30.3: 0b0111100011 RD-, 0b1000011100 RD+
+		{0x2b3, {0x7f, Disparity::Negative}}, {0x14c, {0x7f, Disparity::Positive}}, // D31.3: 0b1010110011 RD-, 0b0101001100 RD+
+		{0x272, {0x80, Disparity::Negative}}, {0x18d, {0x80, Disparity::Positive}}, // D00.4: 0b1001110010 RD-, 0b0110001101 RD+
+		{0x1d2, {0x81, Disparity::Negative}}, {0x22d, {0x81, Disparity::Positive}}, // D01.4: 0b0111010010 RD-, 0b1000101101 RD+
+		{0x2d2, {0x82, Disparity::Negative}}, {0x12d, {0x82, Disparity::Positive}}, // D02.4: 0b1011010010 RD-, 0b0100101101 RD+
+		{0x31d, {0x83, Disparity::Negative}}, {0x312, {0x83, Disparity::Positive}}, // D03.4: 0b1100011101 RD-, 0b1100010010 RD+
+		{0x352, {0x84, Disparity::Negative}}, {0x0ad, {0x84, Disparity::Positive}}, // D04.4: 0b1101010010 RD-, 0b0010101101 RD+
+		{0x29d, {0x85, Disparity::Negative}}, {0x292, {0x85, Disparity::Positive}}, // D05.4: 0b1010011101 RD-, 0b1010010010 RD+
+		{0x19d, {0x86, Disparity::Negative}}, {0x192, {0x86, Disparity::Positive}}, // D06.4: 0b0110011101 RD-, 0b0110010010 RD+
+		{0x38d, {0x87, Disparity::Negative}}, {0x072, {0x87, Disparity::Positive}}, // D07.4: 0b1110001101 RD-, 0b0001110010 RD+
+		{0x392, {0x88, Disparity::Negative}}, {0x06d, {0x88, Disparity::Positive}}, // D08.4: 0b1110010010 RD-, 0b0001101101 RD+
+		{0x25d, {0x89, Disparity::Negative}}, {0x252, {0x89, Disparity::Positive}}, // D09.4: 0b1001011101 RD-, 0b1001010010 RD+
+		{0x15d, {0x8a, Disparity::Negative}}, {0x152, {0x8a, Disparity::Positive}}, // D10.4: 0b0101011101 RD-, 0b0101010010 RD+
+		{0x34d, {0x8b, Disparity::Negative}}, {0x342, {0x8b, Disparity::Positive}}, // D11.4: 0b1101001101 RD-, 0b1101000010 RD+
+		{0x0dd, {0x8c, Disparity::Negative}}, {0x0d2, {0x8c, Disparity::Positive}}, // D12.4: 0b0011011101 RD-, 0b0011010010 RD+
+		{0x2cd, {0x8d, Disparity::Negative}}, {0x2c2, {0x8d, Disparity::Positive}}, // D13.4: 0b1011001101 RD-, 0b1011000010 RD+
+		{0x1cd, {0x8e, Disparity::Negative}}, {0x1c2, {0x8e, Disparity::Positive}}, // D14.4: 0b0111001101 RD-, 0b0111000010 RD+
+		{0x172, {0x8f, Disparity::Negative}}, {0x28d, {0x8f, Disparity::Positive}}, // D15.4: 0b0101110010 RD-, 0b1010001101 RD+
+		{0x1b2, {0x90, Disparity::Negative}}, {0x24d, {0x90, Disparity::Positive}}, // D16.4: 0b0110110010 RD-, 0b1001001101 RD+
+		{0x23d, {0x91, Disparity::Negative}}, {0x232, {0x91, Disparity::Positive}}, // D17.4: 0b1000111101 RD-, 0b1000110010 RD+
+		{0x13d, {0x92, Disparity::Negative}}, {0x132, {0x92, Disparity::Positive}}, // D18.4: 0b0100111101 RD-, 0b0100110010 RD+
+		{0x32d, {0x93, Disparity::Negative}}, {0x322, {0x93, Disparity::Positive}}, // D19.4: 0b1100101101 RD-, 0b1100100010 RD+
+		{0x0bd, {0x94, Disparity::Negative}}, {0x0b2, {0x94, Disparity::Positive}}, // D20.4: 0b0010111101 RD-, 0b0010110010 RD+
+		{0x2ad, {0x95, Disparity::Negative}}, {0x2a2, {0x95, Disparity::Positive}}, // D21.4: 0b1010101101 RD-, 0b1010100010 RD+
+		{0x1ad, {0x96, Disparity::Negative}}, {0x1a2, {0x96, Disparity::Positive}}, // D22.4: 0b0110101101 RD-, 0b0110100010 RD+
+		{0x3a2, {0x97, Disparity::Negative}}, {0x05d, {0x97, Disparity::Positive}}, // D23.4: 0b1110100010 RD-, 0b0001011101 RD+
+		{0x332, {0x98, Disparity::Negative}}, {0x0cd, {0x98, Disparity::Positive}}, // D24.4: 0b1100110010 RD-, 0b0011001101 RD+
+		{0x26d, {0x99, Disparity::Negative}}, {0x262, {0x99, Disparity::Positive}}, // D25.4: 0b1001101101 RD-, 0b1001100010 RD+
+		{0x16d, {0x9a, Disparity::Negative}}, {0x162, {0x9a, Disparity::Positive}}, // D26.4: 0b0101101101 RD-, 0b0101100010 RD+
+		{0x362, {0x9b, Disparity::Negative}}, {0x09d, {0x9b, Disparity::Positive}}, // D27.4: 0b1101100010 RD-, 0b0010011101 RD+
+		{0x0ed, {0x9c, Disparity::Negative}}, {0x0e2, {0x9c, Disparity::Positive}}, // D28.4: 0b0011101101 RD-, 0b0011100010 RD+
+		{0x2e2, {0x9d, Disparity::Negative}}, {0x11d, {0x9d, Disparity::Positive}}, // D29.4: 0b1011100010 RD-, 0b0100011101 RD+
+		{0x1e2, {0x9e, Disparity::Negative}}, {0x21d, {0x9e, Disparity::Positive}}, // D30.4: 0b0111100010 RD-, 0b1000011101 RD+
+		{0x2b2, {0x9f, Disparity::Negative}}, {0x14d, {0x9f, Disparity::Positive}}, // D31.4: 0b1010110010 RD-, 0b0101001101 RD+
+		{0x27a, {0xa0, Disparity::Negative}}, {0x18a, {0xa0, Disparity::Positive}}, // D00.5: 0b1001111010 RD-, 0b0110001010 RD+
+		{0x1da, {0xa1, Disparity::Negative}}, {0x22a, {0xa1, Disparity::Positive}}, // D01.5: 0b0111011010 RD-, 0b1000101010 RD+
+		{0x2da, {0xa2, Disparity::Negative}}, {0x12a, {0xa2, Disparity::Positive}}, // D02.5: 0b1011011010 RD-, 0b0100101010 RD+
+		{0x31a, {0xa3, Disparity::Negative}}, {0x31a, {0xa3, Disparity::Positive}}, // D03.5: 0b1100011010 RD-, 0b1100011010 RD+
+		{0x35a, {0xa4, Disparity::Negative}}, {0x0aa, {0xa4, Disparity::Positive}}, // D04.5: 0b1101011010 RD-, 0b0010101010 RD+
+		{0x29a, {0xa5, Disparity::Same}}, // D05.5: 0b1010011010 RD-, 0b1010011010 RD+
+		{0x19a, {0xa6, Disparity::Same}}, // D06.5: 0b0110011010 RD-, 0b0110011010 RD+
+		{0x38a, {0xa7, Disparity::Negative}}, {0x07a, {0xa7, Disparity::Positive}}, // D07.5: 0b1110001010 RD-, 0b0001111010 RD+
+		{0x39a, {0xa8, Disparity::Negative}}, {0x06a, {0xa8, Disparity::Positive}}, // D08.5: 0b1110011010 RD-, 0b0001101010 RD+
+		{0x25a, {0xa9, Disparity::Same}}, // D09.5: 0b1001011010 RD-, 0b1001011010 RD+
+		{0x15a, {0xaa, Disparity::Same}}, // D10.5: 0b0101011010 RD-, 0b0101011010 RD+
+		{0x34a, {0xab, Disparity::Same}}, // D11.5: 0b1101001010 RD-, 0b1101001010 RD+
+		{0x0da, {0xac, Disparity::Same}}, // D12.5: 0b0011011010 RD-, 0b0011011010 RD+
+		{0x2ca, {0xad, Disparity::Same}}, // D13.5: 0b1011001010 RD-, 0b1011001010 RD+
+		{0x1ca, {0xae, Disparity::Same}}, // D14.5: 0b0111001010 RD-, 0b0111001010 RD+
+		{0x17a, {0xaf, Disparity::Negative}}, {0x28a, {0xaf, Disparity::Positive}}, // D15.5: 0b0101111010 RD-, 0b1010001010 RD+
+		{0x1ba, {0xb0, Disparity::Negative}}, {0x24a, {0xb0, Disparity::Positive}}, // D16.5: 0b0110111010 RD-, 0b1001001010 RD+
+		{0x23a, {0xb1, Disparity::Same}}, // D17.5: 0b1000111010 RD-, 0b1000111010 RD+
+		{0x13a, {0xb2, Disparity::Same}}, // D18.5: 0b0100111010 RD-, 0b0100111010 RD+
+		{0x32a, {0xb3, Disparity::Same}}, // D19.5: 0b1100101010 RD-, 0b1100101010 RD+
+		{0x0ba, {0xb4, Disparity::Same}}, // D20.5: 0b0010111010 RD-, 0b0010111010 RD+
+		{0x2aa, {0xb5, Disparity::Same}}, // D21.5: 0b1010101010 RD-, 0b1010101010 RD+
+		{0x1aa, {0xb6, Disparity::Same}}, // D22.5: 0b0110101010 RD-, 0b0110101010 RD+
+		{0x3aa, {0xb7, Disparity::Negative}}, {0x05a, {0xb7, Disparity::Positive}}, // D23.5: 0b1110101010 RD-, 0b0001011010 RD+
+		{0x33a, {0xb8, Disparity::Negative}}, {0x0ca, {0xb8, Disparity::Positive}}, // D24.5: 0b1100111010 RD-, 0b0011001010 RD+
+		{0x26a, {0xb9, Disparity::Same}}, // D25.5: 0b1001101010 RD-, 0b1001101010 RD+
+		{0x16a, {0xba, Disparity::Same}}, // D26.5: 0b0101101010 RD-, 0b0101101010 RD+
+		{0x36a, {0xbb, Disparity::Negative}}, {0x09a, {0xbb, Disparity::Positive}}, // D27.5: 0b1101101010 RD-, 0b0010011010 RD+
+		{0x0ea, {0xbc, Disparity::Same}}, // D28.5: 0b0011101010 RD-, 0b0011101010 RD+
+		{0x2ea, {0xbd, Disparity::Negative}}, {0x11a, {0xbd, Disparity::Positive}}, // D29.5: 0b1011101010 RD-, 0b0100011010 RD+
+		{0x1ea, {0xbe, Disparity::Negative}}, {0x21a, {0xbe, Disparity::Positive}}, // D30.5: 0b0111101010 RD-, 0b1000011010 RD+
+		{0x2ba, {0xbf, Disparity::Negative}}, {0x14a, {0xbf, Disparity::Positive}}, // D31.5: 0b1010111010 RD-, 0b0101001010 RD+
+		{0x276, {0xc0, Disparity::Negative}}, {0x186, {0xc0, Disparity::Positive}}, // D00.6: 0b1001110110 RD-, 0b0110000110 RD+
+		{0x1d6, {0xc1, Disparity::Negative}}, {0x226, {0xc1, Disparity::Positive}}, // D01.6: 0b0111010110 RD-, 0b1000100110 RD+
+		{0x2d6, {0xc2, Disparity::Negative}}, {0x126, {0xc2, Disparity::Positive}}, // D02.6: 0b1011010110 RD-, 0b0100100110 RD+
+		{0x316, {0xc3, Disparity::Negative}}, {0x316, {0xc3, Disparity::Positive}}, // D03.6: 0b1100010110 RD-, 0b1100010110 RD+
+		{0x356, {0xc4, Disparity::Negative}}, {0x0a6, {0xc4, Disparity::Positive}}, // D04.6: 0b1101010110 RD-, 0b0010100110 RD+
+		{0x296, {0xc5, Disparity::Same}}, // D05.6: 0b1010010110 RD-, 0b1010010110 RD+
+		{0x196, {0xc6,Disparity::Same}}, // D06.6: 0b0110010110 RD-, 0b0110010110 RD+
+		{0x386, {0xc7, Disparity::Negative}}, {0x076, {0xc7, Disparity::Positive}}, // D07.6: 0b1110000110 RD-, 0b0001110110 RD+
+		{0x396, {0xc8, Disparity::Negative}}, {0x066, {0xc8, Disparity::Positive}}, // D08.6: 0b1110010110 RD-, 0b0001100110 RD+
+		{0x256, {0xc9, Disparity::Same}}, // D09.6: 0b1001010110 RD-, 0b1001010110 RD+
+		{0x156, {0xca, Disparity::Same}}, // D10.6: 0b0101010110 RD-, 0b0101010110 RD+
+		{0x346, {0xcb, Disparity::Same}}, // D11.6: 0b1101000110 RD-, 0b1101000110 RD+
+		{0x0d6, {0xcc,Disparity::Same}}, // D12.6: 0b0011010110 RD-, 0b0011010110 RD+
+		{0x2c6, {0xcd, Disparity::Same}}, // D13.6: 0b1011000110 RD-, 0b1011000110 RD+
+		{0x1c6, {0xce, Disparity::Same}}, // D14.6: 0b0111000110 RD-, 0b0111000110 RD+
+		{0x176, {0xcf, Disparity::Negative}}, {0x286, {0xcf, Disparity::Positive}}, // D15.6: 0b0101110110 RD-, 0b1010000110 RD+
+		{0x1b6, {0xd0, Disparity::Negative}}, {0x246, {0xd0, Disparity::Positive}}, // D16.6: 0b0110110110 RD-, 0b1001000110 RD+
+		{0x236, {0xd1, Disparity::Same}}, // D17.6: 0b1000110110 RD-, 0b1000110110 RD+
+		{0x136, {0xd2, Disparity::Same}}, // D18.6: 0b0100110110 RD-, 0b0100110110 RD+
+		{0x326, {0xd3, Disparity::Same}}, // D19.6: 0b1100100110 RD-, 0b1100100110 RD+
+		{0x0b6, {0xd4, Disparity::Same}}, // D20.6: 0b0010110110 RD-, 0b0010110110 RD+
+		{0x2a6, {0xd5, Disparity::Same}}, // D21.6: 0b1010100110 RD-, 0b1010100110 RD+
+		{0x1a6, {0xd6, Disparity::Same}}, // D22.6: 0b0110100110 RD-, 0b0110100110 RD+
+		{0x3a6, {0xd7, Disparity::Negative}}, {0x056, {0xd7, Disparity::Positive}}, // D23.6: 0b1110100110 RD-, 0b0001010110 RD+
+		{0x336, {0xd8, Disparity::Negative}}, {0x0c6, {0xd8, Disparity::Positive}}, // D24.6: 0b1100110110 RD-, 0b0011000110 RD+
+		{0x266, {0xd9, Disparity::Same}}, // D25.6: 0b1001100110 RD-, 0b1001100110 RD+
+		{0x166, {0xda, Disparity::Same}}, // D26.6: 0b0101100110 RD-, 0b0101100110 RD+
+		{0x366, {0xdb, Disparity::Negative}}, {0x096, {0xdb, Disparity::Positive}}, // D27.6: 0b1101100110 RD-, 0b0010010110 RD+
+		{0x0e6, {0xdc,Disparity::Same}}, // D28.6: 0b0011100110 RD-, 0b0011100110 RD+
+		{0x2e6, {0xdd, Disparity::Negative}}, {0x116, {0xdd, Disparity::Positive}}, // D29.6: 0b1011100110 RD-, 0b0100010110 RD+
+		{0x1e6, {0xde, Disparity::Negative}}, {0x216, {0xde, Disparity::Positive}}, // D30.6: 0b0111100110 RD-, 0b1000010110 RD+
+		{0x2b6, {0xdf, Disparity::Negative}}, {0x146, {0xdf, Disparity::Positive}}, // D31.6: 0b1010110110 RD-, 0b0101000110 RD+
+		{0x271, {0xe0, Disparity::Negative}}, {0x18e, {0xe0, Disparity::Positive}}, // D00.7: 0b1001110001 RD-, 0b0110001110 RD+
+		{0x1d1, {0xe1, Disparity::Negative}}, {0x22e, {0xe1, Disparity::Positive}}, // D01.7: 0b0111010001 RD-, 0b1000101110 RD+
+		{0x2d1, {0xe2, Disparity::Negative}}, {0x12e, {0xe2, Disparity::Positive}}, // D02.7: 0b1011010001 RD-, 0b0100101110 RD+
+		{0x31e, {0xe3, Disparity::Negative}}, {0x311, {0xe3, Disparity::Positive}}, // D03.7: 0b1100011110 RD-, 0b1100010001 RD+
+		{0x351, {0xe4, Disparity::Negative}}, {0x0ae, {0xe4, Disparity::Positive}}, // D04.7: 0b1101010001 RD-, 0b0010101110 RD+
+		{0x29e, {0xe5, Disparity::Negative}}, {0x291, {0xe5, Disparity::Positive}}, // D05.7: 0b1010011110 RD-, 0b1010010001 RD+
+		{0x19e, {0xe6, Disparity::Negative}}, {0x191, {0xe6, Disparity::Positive}}, // D06.7: 0b0110011110 RD-, 0b0110010001 RD+
+		{0x38e, {0xe7, Disparity::Negative}}, {0x071, {0xe7, Disparity::Positive}}, // D07.7: 0b1110001110 RD-, 0b0001110001 RD+
+		{0x391, {0xe8, Disparity::Negative}}, {0x06e, {0xe8, Disparity::Positive}}, // D08.7: 0b1110010001 RD-, 0b0001101110 RD+
+		{0x25e, {0xe9, Disparity::Negative}}, {0x251, {0xe9, Disparity::Positive}}, // D09.7: 0b1001011110 RD-, 0b1001010001 RD+
+		{0x15e, {0xea, Disparity::Negative}}, {0x151, {0xea, Disparity::Positive}}, // D10.7: 0b0101011110 RD-, 0b0101010001 RD+
+		{0x34e, {0xeb, Disparity::Negative}}, {0x348, {0xeb, Disparity::Positive}}, // D11.7: 0b1101001110 RD-, 0b1101001000 RD+
+		{0x0de, {0xec, Disparity::Negative}}, {0x0d1, {0xec, Disparity::Positive}}, // D12.7: 0b0011011110 RD-, 0b0011010001 RD+
+		{0x2ce, {0xed, Disparity::Negative}}, {0x2c8, {0xed, Disparity::Positive}}, // D13.7: 0b1011001110 RD-, 0b1011001000 RD+
+		{0x1ce, {0xee, Disparity::Negative}}, {0x1c8, {0xee, Disparity::Positive}}, // D14.7: 0b0111001110 RD-, 0b0111001000 RD+
+		{0x171, {0xef, Disparity::Negative}}, {0x28e, {0xef, Disparity::Positive}}, // D15.7: 0b0101110001 RD-, 0b1010001110 RD+
+		{0x1b1, {0xf0, Disparity::Negative}}, {0x24e, {0xf0, Disparity::Positive}}, // D16.7: 0b0110110001 RD-, 0b1001001110 RD+
+		{0x237, {0xf1, Disparity::Negative}}, {0x231, {0xf1, Disparity::Positive}}, // D17.7: 0b1000110111 RD-, 0b1000110001 RD+
+		{0x137, {0xf2, Disparity::Negative}}, {0x131, {0xf2, Disparity::Positive}}, // D18.7: 0b0100110111 RD-, 0b0100110001 RD+
+		{0x32e, {0xf3, Disparity::Negative}}, {0x321, {0xf3, Disparity::Positive}}, // D19.7: 0b1100101110 RD-, 0b1100100001 RD+
+		{0x0b7, {0xf4, Disparity::Negative}}, {0x0b1, {0xf4, Disparity::Positive}}, // D20.7: 0b0010110111 RD-, 0b0010110001 RD+
+		{0x2ae, {0xf5, Disparity::Negative}}, {0x2a1, {0xf5, Disparity::Positive}}, // D21.7: 0b1010101110 RD-, 0b1010100001 RD+
+		{0x1ae, {0xf6, Disparity::Negative}}, {0x1a1, {0xf6, Disparity::Positive}}, // D22.7: 0b0110101110 RD-, 0b0110100001 RD+
+		{0x3a1, {0xf7, Disparity::Negative}}, {0x05e, {0xf7, Disparity::Positive}}, // D23.7: 0b1110100001 RD-, 0b0001011110 RD+
+		{0x331, {0xf8, Disparity::Negative}}, {0x0ce, {0xf8, Disparity::Positive}}, // D24.7: 0b1100110001 RD-, 0b0011001110 RD+
+		{0x26e, {0xf9, Disparity::Negative}}, {0x261, {0xf9, Disparity::Positive}}, // D25.7: 0b1001101110 RD-, 0b1001100001 RD+
+		{0x16e, {0xfa, Disparity::Negative}}, {0x161, {0xfa, Disparity::Positive}}, // D26.7: 0b0101101110 RD-, 0b0101100001 RD+
+		{0x361, {0xfb, Disparity::Negative}}, {0x09e, {0xfb, Disparity::Positive}}, // D27.7: 0b1101100001 RD-, 0b0010011110 RD+
+		{0x0ee, {0xfc, Disparity::Negative}}, {0x0e1, {0xfc, Disparity::Positive}}, // D28.7: 0b0011101110 RD-, 0b0011100001 RD+
+		{0x2e1, {0xfd, Disparity::Negative}}, {0x11e, {0xfd, Disparity::Positive}}, // D29.7: 0b1011100001 RD-, 0b0100011110 RD+
+		{0x1e1, {0xfe, Disparity::Negative}}, {0x21e, {0xfe, Disparity::Positive}}, // D30.7: 0b0111100001 RD-, 0b1000011110 RD+
+		{0x2b1, {0xff, Disparity::Negative}}, {0x14e, {0xff, Disparity::Positive}}, // D31.7: 0b1010110001 RD-, 0b0101001110 RD+
+		{0x0f4, {0x11c, Disparity::Negative}}, {0x30b, {0x11c, Disparity::Positive}}, // b'K28.0': 0b0011110100 RD-, 0b1100001011 RD+
+		{0x0f9, {0x13c, Disparity::Negative}}, {0x306, {0x13c, Disparity::Positive}}, // b'K28.1': 0b0011111001 RD-, 0b1100000110 RD+
+		{0x0f5, {0x15c, Disparity::Negative}}, {0x30a, {0x15c, Disparity::Positive}}, // b'K28.2': 0b0011110101 RD-, 0b1100001010 RD+
+		{0x0f3, {0x17c, Disparity::Negative}}, {0x30c, {0x17c, Disparity::Positive}}, // b'K28.3': 0b0011110011 RD-, 0b1100001100 RD+
+		{0x0f2, {0x19c, Disparity::Negative}}, {0x30d, {0x19c, Disparity::Positive}}, // b'K28.4': 0b0011110010 RD-, 0b1100001101 RD+
+		{0x0fa, {0x1bc, Disparity::Negative}}, {0x305, {0x1bc, Disparity::Positive}}, // b'K28.5': 0b0011111010 RD-, 0b1100000101 RD+
+		{0x0f6, {0x1dc, Disparity::Negative}}, {0x309, {0x1dc, Disparity::Positive}}, // b'K28.6': 0b0011110110 RD-, 0b1100001001 RD+
+		{0x0f8, {0x1fc, Disparity::Negative}}, {0x307, {0x1fc, Disparity::Positive}}, // b'K28.7': 0b0011111000 RD-, 0b1100000111 RD+
+		{0x3a8, {0x1f7, Disparity::Negative}}, {0x057, {0x1f7, Disparity::Positive}}, // b'K23.7': 0b1110101000 RD-, 0b0001010111 RD+
+		{0x368, {0x1fb, Disparity::Negative}}, {0x097, {0x1fb, Disparity::Positive}}, // b'K27.7': 0b1101101000 RD-, 0b0010010111 RD+
+		{0x2e8, {0x1fd, Disparity::Negative}}, {0x117, {0x1fd, Disparity::Positive}}, // b'K29.7': 0b1011101000 RD-, 0b0100010111 RD+
+		{0x1e8, {0x1fe, Disparity::Negative}}, {0x217, {0x1fe, Disparity::Positive}}, // b'K30.7': 0b0111101000 RD-, 0b1000010111 RD+
 	};
 	
 	auto it = decode_map.find(ten_bit_code);
@@ -373,5 +373,5 @@ std::tuple<U16, bool, bool> decode8b10bSymbolUtils::DecodeSymbol(U16 ten_bit_cod
 		return {it->second.first, it->second.second, true}; // value, disparity, valid
 	}
 	
-	return {0x00, false, false}; // Unknown symbol: value=0, disparity=RD-, invalid
+	return {0x00, Disparity::Negative, false}; // Unknown symbol: value=0, disparity=RD-, invalid
 }
